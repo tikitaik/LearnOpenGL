@@ -1,0 +1,5 @@
+*.exe
+*.out
+CMakeFiles/
+build/
+.DS_Store
