@@ -2,17 +2,17 @@ cmake_minimum_required( VERSION 3.5 )
 
 project ( prog )
 
-
 set(CMAKE_C_COMPILER g++)
 set(CMAKE_CXX_COMPILER g++)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_executable( prog main.cpp include/glad.c )
-find_package( glfw3 REQUIRED )
-target_link_libraries(prog PRIVATE glfw )
 
 if (APPLE)
+
+    find_package( glfw3 REQUIRED )
+    target_link_libraries(prog PRIVATE glfw )
 
     add_compile_options(-mmacosx-version-min=15.3)
     find_library(COCOA_FRAMEWORK Cocoa)
@@ -31,6 +31,7 @@ if (APPLE)
 
 elseif (WIN32)
 
+    target_link_libraries(prog PRIVATE glfw3 )
     add_compile_options(-lopengl32)
     add_compile_options(-lgdi32)
 
