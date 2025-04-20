@@ -7,7 +7,7 @@ set(CMAKE_CXX_COMPILER g++)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-add_executable( prog main.cpp include/glad.c )
+add_executable( prog main.cpp include/glad.c include/stb_image.cpp )
 
 if (APPLE)
 
