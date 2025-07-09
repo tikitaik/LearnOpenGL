@@ -33,7 +33,7 @@ int main(void)
         return -1;
     }
 
-    Shader ourShader("shaders/3.3.shader.vs", "shaders/3.3.shader.fs");
+    Shader ourShader("shaders/3.3.shader.vert", "shaders/3.3.shader.frag");
 
     float vertices[] = {
          0.5f,  0.5f, 0.0f,  1.0f, 0.0f, 0.0f,    1.0f, 1.0f,    // top right
