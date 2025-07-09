@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 3.5 )
 
-project ( prog )
+project (prog)
 
 set(CMAKE_C_COMPILER g++)
 set(CMAKE_CXX_COMPILER g++)
@@ -8,15 +8,18 @@ set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_executable( prog main.cpp include/glad.c include/stb_image.cpp )
+add_executable(prog main.cpp include/glad.c include/stb_image.cpp)
 
 if (APPLE)
 
-    find_package( glfw3 REQUIRED )
-    target_link_libraries(prog PRIVATE glfw )
+    target_include_directories(prog PRIVATE /usr/local/include)
+
+    find_package(glfw3 REQUIRED)
+    target_link_libraries(prog PRIVATE glfw)
 
     add_compile_options(-mmacosx-version-min=15.3)
     find_library(COCOA_FRAMEWORK Cocoa)
+
     if(COCOA_FRAMEWORK)
         target_link_libraries(prog PRIVATE ${COCOA_FRAMEWORK})
     else()
