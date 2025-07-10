@@ -41,7 +41,7 @@ public:
             vertexCode   = vShaderStream.str();
             fragmentCode = fShaderStream.str();		
         }
-        catch(std::ifstream::failure e)
+        catch(const std::ifstream::failure& e)
         {
             std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
         }
@@ -50,8 +50,8 @@ public:
 
         // 2. compile shaders
         unsigned int vertex, fragment;
-        int success;
-        char infoLog[512];
+        //int success;
+        //char infoLog[512];
         
         // vertex Shader
         vertex = glCreateShader(GL_VERTEX_SHADER);

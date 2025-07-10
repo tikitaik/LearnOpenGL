@@ -5,10 +5,13 @@ project (prog)
 set(CMAKE_C_COMPILER g++)
 set(CMAKE_CXX_COMPILER g++)
 
+add_compile_options(-Wall)
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(prog main.cpp include/glad.c include/stb_image.cpp)
+include_directories(include)
 
 if (APPLE)
 
