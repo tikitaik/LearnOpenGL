@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5 VERSION 4.0)
 
 project (prog)
 
-set(CMAKE_C_COMPILER g)
+set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
 
 add_compile_options(-Wall)
