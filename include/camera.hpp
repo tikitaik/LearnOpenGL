@@ -63,6 +63,7 @@ public:
     void ProcessMouse(double xpos, double ypos);
     void ProcessScroll(double yoffset);
     glm::mat4 GetViewMatrix();
+    glm::vec3 GetPos();
 };
 
 void Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime) {
@@ -133,4 +134,8 @@ void Camera::ProcessScroll(double yoffset) {
 
 glm::mat4 Camera::GetViewMatrix() {
     return glm::lookAt(pos, pos + front, up);
+}
+
+glm::vec3 Camera::GetPos() {
+    return pos;
 }
