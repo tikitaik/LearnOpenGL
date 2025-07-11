@@ -209,10 +209,6 @@ float vertices[] = {
 
         // for the non source cube
         lightingShader.use();
-        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
-        lightingShader.setVec3("lightPos", lightPos);
-        lightingShader.setVec3("viewPos", camera.GetPos());
 
         // create transformations
         glm::mat4 model = glm::mat4(1.0f);
@@ -220,9 +216,31 @@ float vertices[] = {
         glm::mat4 projection = glm::perspective(glm::radians(camera.fov), 
                 (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
 
+        // vert shader
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);
         lightingShader.setMat4("model", model);
+
+        glm::vec3 lightColor(sin(glfwGetTime() * 2.0f), sin(glfwGetTime() * 0.7f),
+                sin(glfwGetTime() * 1.3f));
+
+        glm::vec3 diffuseColor = lightColor * 0.5f;
+        glm::vec3 ambientColor = diffuseColor * 0.2f;
+
+        // frag shader
+        lightingShader.setVec3("material.ambient", ambientColor);
+        //lightingShader.setVec3("material.ambient", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("material.diffuse", diffuseColor);
+        //lightingShader.setVec3("material.diffuse", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
+        lightingShader.setFloat("material.shininess", 32.0f);
+
+        lightingShader.setVec3("light.ambient",  0.2f, 0.2f, 0.2f);
+        lightingShader.setVec3("light.diffuse",  0.5f, 0.5f, 0.5f); // darken diffuse light a bit
+        lightingShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f); 
+        lightingShader.setVec3("light.pos", lightPos);
+
+        lightingShader.setVec3("viewPos", camera.GetPos());
         
         // render the cube
         glBindVertexArray(cubeVAO);
