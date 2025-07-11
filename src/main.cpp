@@ -1,7 +1,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "glm/fwd.hpp"
-#include "include/stb_image.h"
+#include "../include/stb_image.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -63,8 +63,8 @@ int main(void)
 
     glEnable(GL_DEPTH_TEST);
 
-    Shader lightingShader("shaders/lighting.vert", "shaders/lighting.frag");
-    Shader lightCubeShader("shaders/lightCube.vert", "shaders/lightCube.frag");
+    Shader lightingShader("src/shaders/lighting.vert", "src/shaders/lighting.frag");
+    Shader lightCubeShader("src/shaders/lightCube.vert", "src/shaders/lightCube.frag");
 
 float vertices[] = {
     -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
