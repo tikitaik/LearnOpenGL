@@ -112,6 +112,19 @@ int main(void)
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
     };
 
+    glm::vec3 cubePositions[] = {
+        glm::vec3( 0.0f,  0.0f,  0.0f),
+        glm::vec3( 2.0f,  5.0f, -15.0f),
+        glm::vec3(-1.5f, -2.2f, -2.5f),
+        glm::vec3(-3.8f, -2.0f, -12.3f),
+        glm::vec3( 2.4f, -0.4f, -3.5f),
+        glm::vec3(-1.7f,  3.0f, -7.5f),
+        glm::vec3( 1.3f, -2.0f, -2.5f),
+        glm::vec3( 1.5f,  2.0f, -2.5f),
+        glm::vec3( 1.5f,  0.2f, -1.5f),
+        glm::vec3(-1.3f,  1.0f, -1.5f)
+    };
+
     int stride = 8;
 
     // create skeletons of buffer objects
@@ -124,14 +137,17 @@ int main(void)
     
     glBindVertexArray(cubeVAO);
 
+    // positions of vertices
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride * sizeof(float),
             (void*)0);
     glEnableVertexAttribArray(0);
 
+    // normals
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride * sizeof(float),
             (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
+    // tex coords
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride * sizeof(float),
             (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
@@ -147,16 +163,12 @@ int main(void)
     // texture maps!
     std::string diffusePath = "src/resources/textures/container2.png";
     std::string specularPath = "src/resources/textures/container2_specular.png";
-    std::string emissionPath = "src/resources/textures/matrix.jpg";
     unsigned int diffuseMap = loadTexture(diffusePath.c_str());
     unsigned int specularMap = loadTexture(specularPath.c_str());
-    unsigned int emissionMap = loadTexture(emissionPath.c_str());
 
     lightingShader.use();
     lightingShader.setInt("material.diffuse", 0);
     lightingShader.setInt("material.specular", 1);
-    lightingShader.setInt("material.emission", 2);
-
 
     while (!glfwWindowShouldClose(window)) {
         
@@ -175,14 +187,11 @@ int main(void)
         glBindTexture(GL_TEXTURE_2D, diffuseMap);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, specularMap);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, emissionMap);
 
         // for the non source cube
         lightingShader.use();
 
         // create transformations
-        glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 projection = glm::perspective(glm::radians(camera.fov), 
                 (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
@@ -190,7 +199,6 @@ int main(void)
         // vert shader
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);
-        lightingShader.setMat4("model", model);
 
         glm::vec3 lightColor(sin(glfwGetTime() * 2.0f), sin(glfwGetTime() * 0.7f),
                 sin(glfwGetTime() * 1.3f));
@@ -198,16 +206,35 @@ int main(void)
         // frag shader
         lightingShader.setFloat("material.shininess", 32.0f);
 
+        lightingShader.setVec3("light.pos", camera.pos);
+        lightingShader.setVec3("light.direction", camera.front);
+        lightingShader.setFloat("light.cutoff", glm::cos(glm::radians(12.5f)));
+        lightingShader.setFloat("light.outerCutoff",
+                glm::cos(glm::radians(17.5f)));
+
         lightingShader.setVec3("light.ambient",  0.2f, 0.2f, 0.2f);
         lightingShader.setVec3("light.diffuse",  0.5f, 0.5f, 0.5f); // darken diffuse light a bit
         lightingShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f); 
-        lightingShader.setVec3("light.pos", lightPos);
 
-        lightingShader.setVec3("viewPos", camera.GetPos());
+        lightingShader.setFloat("light.constant", 1.0f);
+        lightingShader.setFloat("light.linear", 0.09f);
+        lightingShader.setFloat("light.quadratic", 0.032f);
+
+        lightingShader.setVec3("viewPos", camera.pos);
         
-        // render the cube
         glBindVertexArray(cubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glm::mat4 model = glm::mat4(1.0f);
+
+        for (int i = 0; i < 10; i++) {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, cubePositions[i]);
+            float angle = 20.0f * i;
+            model = glm::rotate(model, glm::radians(angle),
+                    glm::vec3(1.0f, 0.3f, 0.5f));
+            lightingShader.setMat4("model", model);
+
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
  
         // for the light source cube
         lightCubeShader.use();

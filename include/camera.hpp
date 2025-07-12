@@ -18,13 +18,15 @@ enum Camera_Movement {
 
 class Camera {
 
-private:
+public: 
 
     glm::vec3 pos;
     glm::vec3 front;
     glm::vec3 up;
+
     float yaw;
     float pitch;
+    float fov;
 
     float lastX;
     float lastY;
@@ -32,10 +34,6 @@ private:
     bool firstMouse;
 
     const float CAMERASPEED = 2.5f;
-
-public: 
-
-    float fov;
 
     Camera(glm::vec3 posIn, glm::vec3 frontIn, glm::vec3 upIn, int screenWidth, int screenHeight) {
 
@@ -63,7 +61,6 @@ public:
     void ProcessMouse(double xpos, double ypos);
     void ProcessScroll(double yoffset);
     glm::mat4 GetViewMatrix();
-    glm::vec3 GetPos();
 };
 
 void Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime) {
@@ -134,8 +131,4 @@ void Camera::ProcessScroll(double yoffset) {
 
 glm::mat4 Camera::GetViewMatrix() {
     return glm::lookAt(pos, pos + front, up);
-}
-
-glm::vec3 Camera::GetPos() {
-    return pos;
 }

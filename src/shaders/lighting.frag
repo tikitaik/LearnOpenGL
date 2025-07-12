@@ -3,15 +3,22 @@
 struct Material {
     sampler2D diffuse;
     sampler2D specular;
-    sampler2D emission;
     float shininess;
 };
 
 struct Light {
     vec3 pos;
+    vec3 direction;
+    float cutoff;
+    float outerCutoff;
+
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    float constant;
+    float linear;
+    float quadratic;
 };
 
 in vec3 Normal;
@@ -27,30 +34,47 @@ out vec4 FragColor;
   
 void main()
 {
+    // attenuation
+    // float dist = length(light.pos - FragPos);
+    // float attenuation = 1.0f / (light.constant + light.linear * dist + 
+    //       light.quadratic * dist * dist);
+
     // ambient light
     vec3 ambient = light.ambient * vec3(texture(material.diffuse, TexCoords));
+
+    vec3 diffuse = vec3(0.0f);
+    vec3 specular = vec3(0.0f);
 
     // diffuse light
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(light.pos - FragPos);
 
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = light.diffuse * diff * 
-        vec3(texture(material.diffuse, TexCoords));
+    float cosTheta = dot(lightDir, normalize(-light.direction));
 
-    // specular light
-    vec3 viewDir = normalize(viewPos - FragPos);
-    vec3 reflectDir = reflect(-lightDir, norm);
+    // check for if in spotlight
+    if (cosTheta > light.outerCutoff) {
 
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0f), material.shininess);
-    vec3 specular = light.specular * spec *
-        vec3(texture(material.specular, TexCoords));
+        float diff = max(dot(norm, lightDir), 0.0);
+        diffuse = light.diffuse * diff * 
+            vec3(texture(material.diffuse, TexCoords));
 
-    vec3 emission = vec3(texture(material.emission, TexCoords));
-    if (vec3(texture(material.specular, TexCoords)) != vec3(0.0f, 0.0f, 0.0f)) {
-        emission = vec3(0.0f, 0.0f, 0.0f);
+        // specular light
+        vec3 viewDir = normalize(viewPos - FragPos);
+        vec3 reflectDir = reflect(-lightDir, norm);
+
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0f), material.shininess);
+        specular = light.specular * spec *
+            vec3(texture(material.specular, TexCoords));
+    }
+    if (cosTheta < light.cutoff) {
+        
+        float epsilon = light.cutoff - light.outerCutoff;
+        float intensity = (cosTheta - light.outerCutoff) / epsilon;
+
+        diffuse *= intensity;
+        specular *= intensity;
     }
 
-    vec3 result = ambient + diffuse + specular + emission;
+    vec3 result = ambient + diffuse + specular;
     FragColor = vec4(result, 1.0);
 }
