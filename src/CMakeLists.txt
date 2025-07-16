@@ -5,24 +5,16 @@ project (LearnOpenGL)
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
 
-set(INCLUDE_PATH /usr/local/include)
-
 add_compile_options(-Wall)
-
-if (APPLE)   
-    add_compile_options(-I /usr/local/include)
-endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_executable(LearnOpenGL main.cpp ../include/glad.c ../include/stb_image.cpp)
+add_executable(LearnOpenGL main.cpp include/glad.c include/stb_image.cpp)
 
-target_include_directories(LearnOpenGL PRIVATE ../include)
+target_include_directories(LearnOpenGL PRIVATE include)
 
 if (APPLE)
-
-    #target_include_directories(LearnOpenGL PRIVATE /usr/local/include)
 
     find_package(glfw3 REQUIRED)
     target_link_libraries(LearnOpenGL PRIVATE glfw)
