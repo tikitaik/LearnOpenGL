@@ -25,7 +25,7 @@ message("source dir is ${CMAKE_SOURCE_DIR}")
 add_executable(LearnOpenGL main.cpp)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/src)
-target_include_directories(LearnOpenGL PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(LearnOpenGL PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 # libraries for all platforms
 target_link_libraries(LearnOpenGL PRIVATE glad)
