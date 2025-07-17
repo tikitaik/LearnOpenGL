@@ -1,4 +1,4 @@
-add_library(glad glad.c)
+add_library(glad glad/glad.c)
 add_library(stb_image stb_image.cpp)
 
 target_include_directories(glad INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
