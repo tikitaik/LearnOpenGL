@@ -22,11 +22,14 @@ endif()
 
 message("source dir is ${CMAKE_SOURCE_DIR}")
 
-add_executable(LearnOpenGL main.cpp include/glad.c include/stb_image.cpp)
+add_executable(LearnOpenGL main.cpp)
 
+add_subdirectory(${CMAKE_SOURCE_DIR}/lib/src)
 target_include_directories(LearnOpenGL PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # libraries for all platforms
+target_link_libraries(LearnOpenGL PRIVATE glad)
+target_link_libraries(LearnOpenGL PRIVATE stb_image)
 target_link_libraries(LearnOpenGL PRIVATE glfw3)
 target_link_libraries(LearnOpenGL PRIVATE assimp)
 
