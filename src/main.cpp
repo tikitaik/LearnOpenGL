@@ -10,6 +10,7 @@
 #include <assimp/postprocess.h>
 
 #include "camera.hpp"
+#include "mesh.hpp"
 #include "shaders/shader.hpp"
 
 #include <iostream>
