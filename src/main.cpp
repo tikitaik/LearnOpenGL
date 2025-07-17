@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/fwd.hpp>
@@ -12,8 +14,6 @@
 #include "camera.hpp"
 #include "mesh.hpp"
 #include "shader.hpp"
-
-#include <iostream>
 
 #define WIDTH 800
 #define HEIGHT 600
