@@ -10,28 +10,42 @@ add_compile_options(-Wall)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-link_directories(${CMAKE_SOURCE_DIR}/lib)
+if (APPLE)
+
+    link_directories(${CMAKE_SOURCE_DIR}/lib/mac)
+
+elseif(WINDOWS)
+
+    link_directories(${CMAKE_SOURCE_DIR}/lib/win)
+
+endif()
+
 message("source dir is ${CMAKE_SOURCE_DIR}")
 
 add_executable(LearnOpenGL main.cpp include/glad.c include/stb_image.cpp)
 
-target_include_directories(LearnOpenGL PRIVATE include)
+target_include_directories(LearnOpenGL PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+message("library path is ${CMAKE_LIBRARY_PATH}")
+
+# libraries for all platforms
+target_link_libraries(LearnOpenGL PRIVATE glfw3)
+target_link_libraries(LearnOpenGL PRIVATE assimp)
 
 if (APPLE)
 
-    find_package(glfw3 REQUIRED)
-    target_link_libraries(LearnOpenGL PRIVATE glfw)
-
     add_compile_options(-mmacosx-version-min=15.3)
 
+    # weird mac libraries
     find_library(COCOA_FRAMEWORK Cocoa)
+    find_library(IOKIT_FRAMEWORK IOKit)
+
     if (COCOA_FRAMEWORK)
         target_link_libraries(LearnOpenGL PRIVATE ${COCOA_FRAMEWORK})
     else()
         message(FATAL_ERROR "Cocoa framework not found")
     endif()
 
-    find_library(IOKIT_FRAMEWORK IOKit)
     if (IOKIT_FRAMEWORK)
         target_link_libraries(LearnOpenGL PRIVATE ${IOKIT_FRAMEWORK})
     else()
@@ -40,11 +54,7 @@ if (APPLE)
 
 elseif (WIN32)
 
-    target_link_libraries(LearnOpenGL PRIVATE assimp-6)
-    target_link_libraries(LearnOpenGL PRIVATE glfw3 )
     target_link_libraries(LearnOpenGL PRIVATE opengl32)
     target_link_libraries(LearnOpenGL PRIVATE gdi32)
-    #   add_compile_options(-lopengl32)
-    #   add_compile_options(-lgdi32)
 
 endif()
