@@ -5,6 +5,8 @@ project (LearnOpenGL)
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
 
+set(CMAKE_CXX_STANDARD 17)
+
 add_compile_options(-Wall)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
