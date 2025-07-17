@@ -11,7 +11,7 @@
 
 #include "camera.hpp"
 #include "mesh.hpp"
-#include "shaders/shader.hpp"
+#include "shader.hpp"
 
 #include <iostream>
 
