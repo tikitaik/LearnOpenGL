@@ -14,7 +14,7 @@ if (APPLE)
 
     link_directories(${CMAKE_SOURCE_DIR}/lib/mac)
 
-elseif(WINDOWS)
+elseif(WIN32)
 
     link_directories(${CMAKE_SOURCE_DIR}/lib/win)
 
@@ -25,8 +25,6 @@ message("source dir is ${CMAKE_SOURCE_DIR}")
 add_executable(LearnOpenGL main.cpp include/glad.c include/stb_image.cpp)
 
 target_include_directories(LearnOpenGL PRIVATE ${CMAKE_SOURCE_DIR}/include)
-
-message("library path is ${CMAKE_LIBRARY_PATH}")
 
 # libraries for all platforms
 target_link_libraries(LearnOpenGL PRIVATE glfw3)
