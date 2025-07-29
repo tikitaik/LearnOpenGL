@@ -18,6 +18,9 @@ unsigned int TextureFromFile(const char* path, const std::string &directory,
 class Model {
 
 public:
+    std::vector<Mesh> meshes;
+    std::string directory;
+    std::vector<Texture> textures_loaded;
 
     Model(const std::string& path) {
         loadModel(path);
@@ -26,17 +29,11 @@ public:
     void Draw(Shader& shader);
 
 private:
-    
-    // model data
-    std::vector<Mesh> meshes;
-    std::string directory;
-
     void loadModel(std::string path);
     void processNode(aiNode* node, const aiScene* scene);
     Mesh processMesh(aiMesh* mesh, const aiScene* scene);
     std::vector<Texture> loadMaterialTextures(aiMaterial* material, aiTextureType type,
             std::string typeName);
-    std::vector<Texture> textures_loaded;
 
 };
 
@@ -49,7 +46,11 @@ void Model::Draw(Shader& shader) {
 void Model::loadModel(std::string path) {
 
     Assimp::Importer import;
-    const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+    const aiScene* scene = import.ReadFile(path,
+            aiProcess_Triangulate |
+            aiProcess_FlipUVs |
+            aiProcess_GenSmoothNormals |
+            aiProcess_CalcTangentSpace);
     
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << '\n';
@@ -79,6 +80,8 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
     std::vector<unsigned int> indices;
     std::vector<Texture> textures;
 
+    glm::vec2 vec = glm::vec2(0.0f, 0.0f);
+
     // process vertex pos, normals, and tex coords
     for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
 
@@ -97,16 +100,15 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 
         vertex.Normal = vector;
         
-        vertices.push_back(vertex);
-
         if (mesh->mTextureCoords[0]) {
-            glm::vec2 vec;
             vec.x = mesh->mTextureCoords[0][i].x;
             vec.y = mesh->mTextureCoords[0][i].y;
-            vertex.TexCoords = vec;
         } else {
-            vertex.TexCoords = glm::vec2(0.0f, 0.0f);
+            std::cout << "no tex coords\n";
         }
+        vertex.TexCoords = vec;
+
+        vertices.push_back(vertex);
     }
 
     // process the indices
