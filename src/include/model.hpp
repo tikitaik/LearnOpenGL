@@ -104,7 +104,6 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
             vec.x = mesh->mTextureCoords[0][i].x;
             vec.y = mesh->mTextureCoords[0][i].y;
         } else {
-            std::cout << "no tex coords\n";
         }
         vertex.TexCoords = vec;
 
@@ -163,9 +162,28 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* material,
             texture.id = TextureFromFile(str.C_Str(), directory);
             texture.type = typeName;
             texture.path = str.C_Str();
+            std::cout << texture.path << '\n';
             textures.push_back(texture);
             textures_loaded.push_back(texture);
         }
+    }
+
+    // if no textures just do white
+    if (textures.size() == 0) {
+
+        // very very bad, should fix later lmao
+        std::string pathToWhite = "../../textures/white_pixel.jpg";
+
+        Texture diffuse = { TextureFromFile(pathToWhite.c_str(), directory),
+            "texture_diffuse",
+            pathToWhite.c_str()};
+
+        Texture specular= { TextureFromFile(pathToWhite.c_str(), directory),
+            "texture_specular",
+            pathToWhite.c_str()};
+
+        textures.push_back(diffuse);
+        textures.push_back(specular);
     }
 
     return textures;
@@ -181,8 +199,7 @@ unsigned int TextureFromFile(const char* path, const std::string &directory, boo
 
     int width, height, nrComponents;
     unsigned char *data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
-    if (data)
-    {
+    if (data) {
         GLenum format;
         if (nrComponents == 1)
             format = GL_RED;
@@ -202,8 +219,7 @@ unsigned int TextureFromFile(const char* path, const std::string &directory, boo
 
         stbi_image_free(data);
     }
-    else
-    {
+    else {
         std::cout << "Texture failed to load at path: " << path << std::endl;
         stbi_image_free(data);
     }

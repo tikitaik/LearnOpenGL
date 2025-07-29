@@ -65,15 +65,25 @@ int main(void)
 
     Shader modelShader("src/shaders/model.vert", "src/shaders/model.frag");
 
-    std::string backpackPath = "src/resources/objects/backpack/backpack.obj"; 
-    Model backpack(backpackPath);
+    std::string objDirPath = "src/resources/objects/";
+    std::string backpack = "backpack/backpack.obj";
+    std::string buddha = "buddha/buddha.obj";
+    std::string bunny = "bunny/bunny.obj";
+    std::string dragon = "dragon/dragon.obj";
+    std::string sponza = "sponza/sponza.obj";
+    std::string statuette = "statuette/statuette.ply";
+    //Model modelObj(objDirPath + backpack);
+    Model modelObj(objDirPath + buddha);
 
-    /*
-    lightingShader.use();
-    lightingShader.setInt("material.diffuse", 0);
-    lightingShader.setInt("material.specular", 1);
-    lightingShader.setFloat("material.shininess", 32.0f);
-    */
+    modelShader.use();
+    modelShader.setInt("material.diffuse", 0);
+    modelShader.setInt("material.specular", 0);
+    modelShader.setFloat("material.shininess", 32.0f);
+
+    modelShader.setVec3("dirLight.direction", glm::vec3(-1.0f, -1.0f, -1.0f));
+    modelShader.setVec3("dirLight.ambient", glm::vec3(0.05f, 0.05f, 0.05f));
+    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.4, 0.4f, 0.4f));
+    modelShader.setVec3("dirLight.specular", glm::vec3(0.5f, 0.5f, 0.5f));
 
     while (!glfwWindowShouldClose(window)) {
         
@@ -96,16 +106,20 @@ int main(void)
                 (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
 
+        float modelScale = 1.0f;
+
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));
+        model = glm::scale(model, glm::vec3(modelScale));
 
         // vert shader
         modelShader.setMat4("projection", projection);
         modelShader.setMat4("view", view);
         modelShader.setMat4("model", model);
-        
-        backpack.Draw(modelShader);
+
+        // frag shader
+        modelShader.setVec3("viewPos", camera.pos);
+        modelObj.Draw(modelShader);
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
