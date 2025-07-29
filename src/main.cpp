@@ -31,15 +31,14 @@ const glm::vec3 initCameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
 
 Camera camera(initCameraPos, initCameraFront, initCameraUp, WIDTH, HEIGHT);
 
-// light
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
-
 int main(void)
 {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    std::cerr << "hi!\n";
 
     GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "LearnOpenGL", NULL, NULL);
     if (window == NULL) 
@@ -66,15 +65,17 @@ int main(void)
 
     glEnable(GL_DEPTH_TEST);
 
-    Shader lightingShader("src/shaders/lighting.vert", "src/shaders/lighting.frag");
+    Shader modelShader("src/shaders/model.vert", "src/shaders/model.frag");
 
-    std::string backpackPath = "src/resources/textures/backpack/backpack.obj"; 
+    std::string backpackPath = "src/resources/objects/backpack/backpack.obj"; 
     Model backpack(backpackPath);
 
+    /*
     lightingShader.use();
     lightingShader.setInt("material.diffuse", 0);
     lightingShader.setInt("material.specular", 1);
     lightingShader.setFloat("material.shininess", 32.0f);
+    */
 
     while (!glfwWindowShouldClose(window)) {
         
@@ -90,22 +91,23 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // for the non source cube
-        lightingShader.use();
+        modelShader.use();
 
         // create transformations
-        glm::mat4 model = glm::mat4(1.0f);
-        glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 projection = glm::perspective(glm::radians(camera.fov), 
                 (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));
 
         // vert shader
-        lightingShader.setMat4("model", model);
-        lightingShader.setMat4("projection", projection);
-        lightingShader.setMat4("view", view);
-
-        lightingShader.setVec3("viewPos", camera.pos);
-
-        backpack.Draw(lightingShader);
+        modelShader.setMat4("projection", projection);
+        modelShader.setMat4("view", view);
+        modelShader.setMat4("model", model);
+        
+        backpack.Draw(modelShader);
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
