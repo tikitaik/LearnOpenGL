@@ -7,33 +7,59 @@ set(CMAKE_CXX_COMPILER g++)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# if i need to debug
+#set(CMAKE_FIND_DEBUG_MODE TRUE)
+
 add_compile_options(-Wall)
 
+set(CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR})
+set(CMAKE_LIBRARY_PATH ${CMAKE_PREFIX_PATH}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+set(HINT_SRC ${CMAKE_LIBRARY_PATH}/src)
 
 if (APPLE)
 
-    link_directories(${CMAKE_SOURCE_DIR}/lib/mac)
+    set(HINT_PLATFORM ${CMAKE_LIBRARY_PATH}/mac)
+    message(${HINT_PLATFORM})
 
 elseif(WIN32)
 
-    link_directories(${CMAKE_SOURCE_DIR}/lib/win)
+    set(HINT_PLATFORM ${CMAKE_LIBRARY_PATH}/win)
+    message(${HINT_PLATFORM})
 
 endif()
-
-message("source dir is ${CMAKE_SOURCE_DIR}")
 
 add_executable(LearnOpenGL main.cpp)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/src)
+
 target_include_directories(LearnOpenGL PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 # libraries for all platforms
+#find_library(
+#    GLAD glad 
+#    HINTS ${HINT_SRC} ${HINT_PLATFORM}
+#    REQUIRED)
+#find_library(
+#    STB_IMAGE stb_image
+#    HINTS ${HINT_SRC} ${HINT_PLATFORM}
+#    REQUIRED)
+find_library(
+    GLFW3 glfw3 REQUIRED
+    HINTS ${HINT_SRC} ${HINT_PLATFORM}
+    REQUIRED)
+find_library(
+    ASSIMP NAMES assimp assimp-6
+    HINTS ${HINT_SRC} ${HINT_PLATFORM}
+    REQUIRED)
+
 target_link_libraries(LearnOpenGL PRIVATE glad)
 target_link_libraries(LearnOpenGL PRIVATE stb_image)
-target_link_libraries(LearnOpenGL PRIVATE glfw3)
-target_link_libraries(LearnOpenGL PRIVATE assimp)
+target_link_libraries(LearnOpenGL PRIVATE ${GLFW3})
+target_link_libraries(LearnOpenGL PRIVATE ${ASSIMP})
 
 if (APPLE)
 
