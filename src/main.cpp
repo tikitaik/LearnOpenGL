@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -31,7 +32,7 @@ const glm::vec3 initCameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
 
 Camera camera(initCameraPos, initCameraFront, initCameraUp, WIDTH, HEIGHT);
 
-int main(void)
+int main(int argc, char* argv[])
 {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -63,7 +64,20 @@ int main(void)
 
     glEnable(GL_DEPTH_TEST);
 
-    Shader modelShader("shaders/model.vert", "shaders/model.frag");
+    // hehehe this will let us find executable location
+    std::string resPath(argv[0]);
+    resPath.erase(0,1);
+    size_t last_slash_pos = resPath.find_last_of('/');
+    if (last_slash_pos != std::string::npos) {
+        resPath.erase(last_slash_pos);
+    }
+    std::string cwd = std::filesystem::current_path();
+    std::string buildPath = cwd + resPath + '/';
+    std::cout << buildPath << '\n';
+
+    std::string vertPath = "shaders/model.vert";
+    std::string fragPath = "shaders/model.frag";
+    Shader modelShader((buildPath + vertPath).c_str(), (buildPath + fragPath).c_str());
 
     std::string objDirPath = "resources/objects/";
     std::string backpack = "backpack/backpack.obj";
@@ -73,7 +87,7 @@ int main(void)
     std::string sponza = "sponza/sponza.obj";
     std::string statuette = "statuette/statuette.ply";
     //Model modelObj(objDirPath + backpack);
-    Model modelObj(objDirPath + buddha);
+    Model modelObj(buildPath + objDirPath + buddha);
 
     modelShader.use();
     modelShader.setInt("material.diffuse", 0);
