@@ -63,9 +63,9 @@ int main(void)
 
     glEnable(GL_DEPTH_TEST);
 
-    Shader modelShader("src/shaders/model.vert", "src/shaders/model.frag");
+    Shader modelShader("shaders/model.vert", "shaders/model.frag");
 
-    std::string objDirPath = "src/resources/objects/";
+    std::string objDirPath = "resources/objects/";
     std::string backpack = "backpack/backpack.obj";
     std::string buddha = "buddha/buddha.obj";
     std::string bunny = "bunny/bunny.obj";
