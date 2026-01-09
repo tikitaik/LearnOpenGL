@@ -21,6 +21,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 unsigned int loadTexture(char const * path);
 
+std::string getBuildPath(std::string command);
+
 // timekeeping
 float deltaTime = 0.0f; // time between current and last frame
 float lastFrame = 0.0f; // time from start to last frame being rendered
@@ -34,11 +36,13 @@ Camera camera(initCameraPos, initCameraFront, initCameraUp, WIDTH, HEIGHT);
 
 int main(int argc, char* argv[])
 {
+    // glfw initialise
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    // glfw window creation
     GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "LearnOpenGL", NULL, NULL);
     if (window == NULL) 
     {
@@ -54,6 +58,7 @@ int main(int argc, char* argv[])
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    // load opengl function pointers
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "Failed to initialise GLAD" << '\n';
@@ -62,32 +67,11 @@ int main(int argc, char* argv[])
 
     stbi_set_flip_vertically_on_load(true);
 
+    // configure opengl state
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
-    // hehehe this will let us find executable location
-    std::string resPath(argv[0]);
-    std::string cwd = std::filesystem::current_path();
-    std::string buildPath;
-
-    if (resPath == cwd) {
-        // clicking on exe file case
-        buildPath = cwd;
-    } else {
-
-        // remove first character (which is . because of running ./LearnOpenGL)
-        resPath.erase(0,1);
-
-        // remove everything after the last slash in argv[0]
-        size_t last_slash_pos = resPath.find_last_of('/');
-        if (last_slash_pos != std::string::npos) {
-            resPath.erase(last_slash_pos);
-        }
-
-        std::string buildPath = cwd + resPath + '/';
-        //std::cout << "cwd: " << cwd << '\n';
-        //std::cout << "resPath: " << resPath << '\n';
-        //std::cout << "buildPath: " << buildPath << '\n';
-    }
+    std::string buildPath = getBuildPath(std::string (argv[0]));
 
     // back to boring setup stuff now
 
@@ -104,7 +88,7 @@ int main(int argc, char* argv[])
     std::string sponza = "sponza/sponza.obj";
     std::string statuette = "statuette/statuette.ply";
     //Model modelObj(objDirPath + backpack);
-    Model modelObj(buildPath + objDirPath + buddha);
+    Model modelObj(buildPath + objDirPath + dragon);
 
     modelShader.use();
     modelShader.setInt("material.diffuse", 0);
@@ -231,4 +215,38 @@ unsigned int loadTexture(char const * path) {
 
     stbi_image_free(data);
     return textureID;
+}
+
+std::string getBuildPath(std::string argv_0) {
+
+    // hehehe this will let us find executable location
+    std::string resPath(argv_0);
+    std::string cwd = std::filesystem::current_path();
+    std::string buildPath;
+
+    // get rid of executable name
+    size_t last_slash_pos = resPath.find_last_of('/');
+    if (last_slash_pos != std::string::npos) {
+        resPath.erase(last_slash_pos);
+    }
+
+    if (resPath == cwd) {
+
+        // clicking on exe file case
+        return cwd + '/';
+
+    } else {
+
+        // remove first character (which is . because of running ./LearnOpenGL)
+        resPath.erase(0,1);
+
+        // remove everything after the last slash in argv[0]
+
+        buildPath = cwd + resPath + '/';
+        //std::cout << "cwd: " << cwd << '\n';
+        //std::cout << "resPath: " << resPath << '\n';
+        //std::cout << "buildPath: " << buildPath << '\n';
+    }
+
+    return buildPath;
 }
