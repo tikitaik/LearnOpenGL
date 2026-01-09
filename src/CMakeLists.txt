@@ -48,7 +48,7 @@ target_include_directories(LearnOpenGL PUBLIC ${CMAKE_SOURCE_DIR}/include)
 #    HINTS ${HINT_SRC} ${HINT_PLATFORM}
 #    REQUIRED)
 find_library(
-    GLFW3 glfw3 REQUIRED
+    GLFW3 glfw REQUIRED
     HINTS ${HINT_SRC} ${HINT_PLATFORM}
     REQUIRED)
 find_library(
