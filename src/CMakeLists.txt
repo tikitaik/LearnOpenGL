@@ -1,7 +1,9 @@
+# boring ahh config
 cmake_minimum_required(VERSION 3.5 VERSION 4.0)
 
 project (LearnOpenGL)
 
+# compiler config
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
 
@@ -12,12 +14,15 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_compile_options(-Wall)
 
+# paths
+# try to keep things in the repo folder for now because i cant be fucked
 set(CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR})
 set(CMAKE_LIBRARY_PATH ${CMAKE_PREFIX_PATH}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# platform-dependent config
 set(HINT_SRC ${CMAKE_LIBRARY_PATH}/src)
 
 if (APPLE)
@@ -38,17 +43,8 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/lib/src)
 
 target_include_directories(LearnOpenGL PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
-# libraries for all platforms
-#find_library(
-#    GLAD glad 
-#    HINTS ${HINT_SRC} ${HINT_PLATFORM}
-#    REQUIRED)
-#find_library(
-#    STB_IMAGE stb_image
-#    HINTS ${HINT_SRC} ${HINT_PLATFORM}
-#    REQUIRED)
 find_library(
-    GLFW3 glfw REQUIRED
+    GLFW NAMES glfw glfw3 REQUIRED
     HINTS ${HINT_SRC} ${HINT_PLATFORM}
     REQUIRED)
 find_library(
@@ -58,9 +54,10 @@ find_library(
 
 target_link_libraries(LearnOpenGL PRIVATE glad)
 target_link_libraries(LearnOpenGL PRIVATE stb_image)
-target_link_libraries(LearnOpenGL PRIVATE ${GLFW3})
+target_link_libraries(LearnOpenGL PRIVATE ${GLFW})
 target_link_libraries(LearnOpenGL PRIVATE ${ASSIMP})
 
+# more platform-dependent stuff
 if (APPLE)
 
     add_compile_options(-mmacosx-version-min=15.3)
@@ -87,3 +84,7 @@ elseif (WIN32)
     target_link_libraries(LearnOpenGL PRIVATE gdi32)
 
 endif()
+
+# copy resources into build
+file(COPY ${CMAKE_SOURCE_DIR}/resources DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY ${CMAKE_SOURCE_DIR}/shaders DESTINATION ${CMAKE_BINARY_DIR})
