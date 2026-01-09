@@ -1,2 +1,1 @@
-run from root dir: e.g. ./build/LearnOpenGL
-NOT double click on the binary
+Now can double click on exe file and run in terminal!
