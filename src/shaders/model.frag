@@ -47,6 +47,7 @@ in vec2 TexCoords;
 uniform vec3 viewPos;
 uniform Material material;
 uniform DirLight dirLight;
+uniform sampler2D ourTex;
 //uniform PointLight pointLights[NR_POINT_LIGHTS];
 //uniform SpotLight spotLight;
 
@@ -75,12 +76,7 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 }*/
 
 void main() {
-    float near = 0.1;
-    float far = 100.0;
-
-    float z = gl_FragCoord.z * 2.0 - 1.0;
-    float depth = ((2.0 * near * far) / (far + near - z * (far - near))) / far;
-    FragColor = vec4(vec3(depth), 1.0);
+    FragColor = texture(ourTex, TexCoords);
 }
 
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir) {
