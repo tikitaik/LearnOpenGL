@@ -66,17 +66,34 @@ int main(int argc, char* argv[])
 
     // hehehe this will let us find executable location
     std::string resPath(argv[0]);
-    resPath.erase(0,1);
-    size_t last_slash_pos = resPath.find_last_of('/');
-    if (last_slash_pos != std::string::npos) {
-        resPath.erase(last_slash_pos);
-    }
     std::string cwd = std::filesystem::current_path();
-    std::string buildPath = cwd + resPath + '/';
-    std::cout << buildPath << '\n';
+    std::string buildPath;
+
+    if (resPath == cwd) {
+        // clicking on exe file case
+        buildPath = cwd;
+    } else {
+
+        // remove first character (which is . because of running ./LearnOpenGL)
+        resPath.erase(0,1);
+
+        // remove everything after the last slash in argv[0]
+        size_t last_slash_pos = resPath.find_last_of('/');
+        if (last_slash_pos != std::string::npos) {
+            resPath.erase(last_slash_pos);
+        }
+
+        std::string buildPath = cwd + resPath + '/';
+        //std::cout << "cwd: " << cwd << '\n';
+        //std::cout << "resPath: " << resPath << '\n';
+        //std::cout << "buildPath: " << buildPath << '\n';
+    }
+
+    // back to boring setup stuff now
 
     std::string vertPath = "shaders/model.vert";
     std::string fragPath = "shaders/model.frag";
+
     Shader modelShader((buildPath + vertPath).c_str(), (buildPath + fragPath).c_str());
 
     std::string objDirPath = "resources/objects/";
