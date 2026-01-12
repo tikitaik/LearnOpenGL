@@ -1,5 +1,6 @@
 #include <iostream>
 #include <filesystem>
+#include <map>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -72,11 +73,12 @@ int main(int argc, char* argv[])
     glDepthFunc(GL_LESS);
     glEnable(GL_STENCIL_TEST);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     std::string buildPath = getBuildPath(std::string (argv[0]));
 
     // back to boring setup stuff now
-
     std::string vertPath = "shaders/model.vert";
     std::string fragPath = "shaders/model.frag";
     std::string singleColorPath = "shaders/singleColorShader.frag";
@@ -138,6 +140,7 @@ int main(int argc, char* argv[])
         -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
         -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
+
     float planeVertices[] = {
         // positions          // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
         5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
@@ -148,6 +151,26 @@ int main(int argc, char* argv[])
         -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
         5.0f, -0.5f, -5.0f,  2.0f, 2.0f								
     };
+
+    float grassVerticies[] = {
+        // positions        // tex coords
+        -0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
+        0.5f,  -0.5f, 0.0f, 1.0f, 0.0f,
+
+        0.5f,  -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f,   0.5f, 0.0f, 1.0f, 1.0f,
+        -0.5f,  0.5f, 0.0f, 0.0f, 1.0f
+    };
+
+    // grass locations
+    std::vector<glm::vec3> vegetation;
+    vegetation.push_back(glm::vec3(-1.5f,  0.0f, -0.48f));
+    vegetation.push_back(glm::vec3( 1.5f,  0.0f,  0.51f));
+    vegetation.push_back(glm::vec3( 0.0f,  0.0f,  0.7f));
+    vegetation.push_back(glm::vec3(-0.3f,  0.0f, -2.3f));
+    vegetation.push_back(glm::vec3( 0.5f,  0.0f, -0.6f)); 
+
     // cube VAO
     unsigned int cubeVAO, cubeVBO;
     glGenVertexArrays(1, &cubeVAO);
@@ -161,6 +184,7 @@ int main(int argc, char* argv[])
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 
     glBindVertexArray(0);
+
     // plane VAO
     unsigned int planeVAO, planeVBO;
     glGenVertexArrays(1, &planeVAO);
@@ -174,12 +198,28 @@ int main(int argc, char* argv[])
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
 
+    // grass array objects
+    unsigned int grassVAO, grassVBO;
+    glGenVertexArrays(1, &grassVAO);
+    glGenBuffers(1, &grassVBO);
+    glBindVertexArray(grassVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, grassVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(grassVerticies), &grassVerticies, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindVertexArray(0);
+
+
     // load textures
     // -------------
     std::string cubeTexturePath = buildPath + "resources/textures/marble.jpg";
     std::string floorTexturePath = buildPath + "resources/textures/metal.jpg";
+    std::string grassTexturePath = buildPath + "resources/textures/blending_transparent_window.png";
     unsigned int cubeTexture  = loadTexture(cubeTexturePath.c_str());
     unsigned int floorTexture = loadTexture(floorTexturePath.c_str());
+    unsigned int grassTexture = loadTexture(grassTexturePath.c_str());
 
     modelShader.use();
     modelShader.setInt("material.diffuse", 0);
@@ -233,11 +273,11 @@ int main(int argc, char* argv[])
         glBindVertexArray(cubeVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, cubeTexture);
-        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+        model = glm::translate(model, glm::vec3(-1.5f, 0.0f, -1.0f));
         modelShader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(1.5f, 0.0f, 0.0f));
         modelShader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -255,12 +295,12 @@ int main(int argc, char* argv[])
         glBindVertexArray(cubeVAO);
         glBindTexture(GL_TEXTURE_2D, cubeTexture);
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+        model = glm::translate(model, glm::vec3(-1.5f, 0.0f, -1.0f));
         model = glm::scale(model, glm::vec3(scale, scale, scale));
         singleColorShader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(1.5f, 0.0f, 0.0f));
         model = glm::scale(model, glm::vec3(scale, scale, scale));
         singleColorShader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -270,6 +310,28 @@ int main(int argc, char* argv[])
         glEnable(GL_DEPTH_TEST);
         //modelObj.Draw(modelShader);
 
+        modelShader.use();
+
+        // draw grass quads
+        glBindVertexArray(grassVAO);
+        glBindTexture(GL_TEXTURE_2D, grassTexture);
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
+        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        std::map<float, glm::vec3> sorted;
+        for (unsigned int i = 0; i < vegetation.size(); i++) {
+            float distance = glm::length(camera.pos - vegetation[i]);
+            sorted[distance] = vegetation[i];
+        }
+
+        for (std::map<float, glm::vec3>::reverse_iterator it = sorted.rbegin(); it != sorted.rend();
+                ++it){
+
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, it->second);
+            modelShader.setMat4("model", model);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
