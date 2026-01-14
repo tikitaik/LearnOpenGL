@@ -1,23 +1,44 @@
 #version 330 core
 
-out vec4 FragColor;  
-  
-//in vec2 TexCoords;
+out vec4 FragColor;
 
-in vec3 Normal;
-in vec3 Position;
+in vec2 TexCoords;
 
-//uniform sampler2D tex;
-uniform vec3 cameraPos;
-uniform samplerCube skybox;
+uniform sampler2D tex;
+
+vec4 mandelbrotSet(vec4 fragCoord);
 
 void main()
 {
     //FragColor = texture(tex, TexCoords);
+    FragColor = mandelbrotSet(gl_FragCoord);
+}
 
-    float ratio = 1.00f / 1.52f;
+vec4 mandelbrotSet(vec4 fragCoord) {
 
-    vec3 I = normalize(Position - cameraPos);
-    vec3 R = refract(I, normalize(Normal), ratio);
-    FragColor = vec4(texture(skybox, R).rgb, 1.0);
+    float ca = (fragCoord.x - 400) / 200.0f;
+    float cb = (fragCoord.y - 300) / 200.0f;
+
+    float za = 0;
+    float zb = 0;
+
+    float max = 40;
+    float i = 0;
+
+    while (za * za + zb * zb < 50 && i < max) {
+
+        float temp = za;
+        temp = za * za - zb * zb;
+        zb = 2 * za * zb;
+        za = temp;
+
+        za += ca;
+        zb += cb;
+
+        i++;
+    }
+
+    float ratio = i / max;
+
+    return vec4(ratio, ratio, ratio, 1.0f);
 }
