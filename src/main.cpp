@@ -72,24 +72,18 @@ int main(int argc, char* argv[])
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-    glEnable(GL_STENCIL_TEST);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
     std::string buildPath = getBuildPath(std::string (argv[0]));
 
     // back to boring setup stuff now
-    std::string vertPath = "shaders/model.vert";
-    std::string fragPath = "shaders/model.frag";
-    std::string singleColorPath = "shaders/singleColorShader.frag";
+    std::string vertPath = "shaders/shader.vert";
+    std::string fragPath = "shaders/shader.frag";
 
-    Shader modelShader((buildPath + vertPath).c_str(), (buildPath + fragPath).c_str());
-    Shader singleColorShader((buildPath + vertPath).c_str(), (buildPath + singleColorPath).c_str());
+    Shader shader((buildPath + vertPath).c_str(), (buildPath + fragPath).c_str());
+    Shader quadShader((buildPath + "shaders/quad.vert").c_str(), 
+            (buildPath + "shaders/quad.frag").c_str());
 
     /*std::string objDirPath = "resources/objects/";
     std::string backpack = "backpack/backpack.obj";
@@ -157,15 +151,15 @@ int main(int argc, char* argv[])
         5.0f, -0.5f,  5.0f,  2.0f, 0.0f
     };
 
-    float grassVerticies[] = {
-        // positions        // tex coords
-        -0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
-        0.5f,  -0.5f, 0.0f, 1.0f, 0.0f,
+    float quadVertices[] = {
+        // positions          // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
+        -1.0f, -1.0f, -0.5f,  0.0f, 0.0f,
+        1.0f, -1.0f,  -0.5f,  1.0f, 0.0f,
+        1.0f, 1.0f,  -0.5f,  1.0f, 1.0f,
 
-        0.5f,  -0.5f, 0.0f, 1.0f, 0.0f,
-        0.5f,   0.5f, 0.0f, 1.0f, 1.0f,
-        -0.5f,  0.5f, 0.0f, 0.0f, 1.0f
+        1.0f, 1.0f, -0.5f,  1.0f, 1.0f,								
+        -1.0f, 1.0f, -0.5f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  -0.5f,  0.0f, 0.0f
     };
 
     // grass locations
@@ -175,6 +169,42 @@ int main(int argc, char* argv[])
     vegetation.push_back(glm::vec3( 0.0f,  0.0f,  0.7f));
     vegetation.push_back(glm::vec3(-0.3f,  0.0f, -2.3f));
     vegetation.push_back(glm::vec3( 0.5f,  0.0f, -0.6f)); 
+
+    // frame buffer and attachments
+    // use textures as buffer space
+    unsigned int fbo;
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    // allocate memory to texture, so no actual texture in there just empty space to write to
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // or we can uuse renderbuffer objects? you cant directly read from them
+    // you can use glReadPixels but it is slow
+    // renderbuffers are good for depth and stencil buffers because of the readonly
+    // renderbuffer good for when not sampling
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    // attach yippee
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
 
     // cube VAO
     unsigned int cubeVAO, cubeVBO;
@@ -203,39 +233,36 @@ int main(int argc, char* argv[])
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
 
-    // grass array objects
-    unsigned int grassVAO, grassVBO;
-    glGenVertexArrays(1, &grassVAO);
-    glGenBuffers(1, &grassVBO);
-    glBindVertexArray(grassVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, grassVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(grassVerticies), &grassVerticies, GL_STATIC_DRAW);
+    // quad planeVAO
+    unsigned int quadVAO, quadVBO;
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
 
-
     // load textures
     // -------------
-    std::string cubeTexturePath = buildPath + "resources/textures/marble.jpg";
+    std::string cubeTexturePath = buildPath + "resources/textures/container.jpg";
     std::string floorTexturePath = buildPath + "resources/textures/metal.jpg";
-    std::string grassTexturePath = buildPath + "resources/textures/blending_transparent_window.png";
     unsigned int cubeTexture  = loadTexture(cubeTexturePath.c_str());
     unsigned int floorTexture = loadTexture(floorTexturePath.c_str());
-    unsigned int grassTexture = loadTexture(grassTexturePath.c_str());
 
-    modelShader.use();
-    modelShader.setInt("material.diffuse", 0);
-    modelShader.setInt("material.specular", 0);
-    modelShader.setFloat("material.shininess", 32.0f);
-    modelShader.setInt("ourTex", 0);
+    shader.use();
+    shader.setInt("material.diffuse", 0);
+    shader.setInt("material.specular", 0);
+    shader.setFloat("material.shininess", 32.0f);
+    shader.setInt("ourTex", 0);
 
-    modelShader.setVec3("dirLight.direction", glm::vec3(-1.0f, -1.0f, -1.0f));
-    modelShader.setVec3("dirLight.ambient", glm::vec3(0.05f, 0.05f, 0.05f));
-    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.4, 0.4f, 0.4f));
-    modelShader.setVec3("dirLight.specular", glm::vec3(0.5f, 0.5f, 0.5f));
+    shader.setVec3("dirLight.direction", glm::vec3(-1.0f, -1.0f, -1.0f));
+    shader.setVec3("dirLight.ambient", glm::vec3(0.05f, 0.05f, 0.05f));
+    shader.setVec3("dirLight.diffuse", glm::vec3(0.4, 0.4f, 0.4f));
+    shader.setVec3("dirLight.specular", glm::vec3(0.5f, 0.5f, 0.5f));
 
     while (!glfwWindowShouldClose(window)) {
         
@@ -247,96 +274,47 @@ int main(int argc, char* argv[])
         processInput(window);
 
         // rendering commands here
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-// set uniforms
-        singleColorShader.use();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // set uniforms
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 projection = glm::perspective(glm::radians(camera.fov), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
-        singleColorShader.setMat4("view", view);
-        singleColorShader.setMat4("projection", projection);
 
-        modelShader.use();
-        modelShader.setMat4("view", view);
-        modelShader.setMat4("projection", projection);
+        shader.use();
+        shader.setMat4("view", view);
+        shader.setMat4("projection", projection);
 
-        // draw floor as normal, but don't write the floor to the stencil buffer, we only care about the containers. We set its mask to 0x00 to not write to the stencil buffer.
-        glStencilMask(0x00);
         // floor
         glBindVertexArray(planeVAO);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
-        modelShader.setMat4("model", glm::mat4(1.0f));
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
 
-        // 1st. render pass, draw objects as normal, writing to the stencil buffer
-        // --------------------------------------------------------------------
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        glStencilMask(0xFF);
         // cubes
         glBindVertexArray(cubeVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, cubeTexture);
         model = glm::translate(model, glm::vec3(-1.5f, 0.0f, -1.0f));
-        modelShader.setMat4("model", model);
+        shader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(1.5f, 0.0f, 0.0f));
-        modelShader.setMat4("model", model);
+        shader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        // 2nd. render pass: now draw slightly scaled versions of the objects, this time disabling stencil writing.
-        // Because the stencil buffer is now filled with several 1s. The parts of the buffer that are 1 are not drawn, thus only drawing 
-        // the objects' size differences, making it look like borders.
-        // -----------------------------------------------------------------------------------------------------------------------------
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilMask(0x00);
-        glDisable(GL_DEPTH_TEST);
-        singleColorShader.use();
+        // now use normal buffer
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.1f, 0.4f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        float scale = 1.1f;
-        // cubes
-        glBindVertexArray(cubeVAO);
-        glBindTexture(GL_TEXTURE_2D, cubeTexture);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-1.5f, 0.0f, -1.0f));
-        model = glm::scale(model, glm::vec3(scale, scale, scale));
-        singleColorShader.setMat4("model", model);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(1.5f, 0.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(scale, scale, scale));
-        singleColorShader.setMat4("model", model);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
-        glStencilMask(0xFF);
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        glEnable(GL_DEPTH_TEST);
-        //modelObj.Draw(modelShader);
+        quadShader.use();
+        glBindVertexArray(quadVAO);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        modelShader.use();
-
-        // draw grass quads
-        glBindVertexArray(grassVAO);
-        glBindTexture(GL_TEXTURE_2D, grassTexture);
-        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
-        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-        std::map<float, glm::vec3> sorted;
-        for (unsigned int i = 0; i < vegetation.size(); i++) {
-            float distance = glm::length(camera.pos - vegetation[i]);
-            sorted[distance] = vegetation[i];
-        }
-
-        for (std::map<float, glm::vec3>::reverse_iterator it = sorted.rbegin(); it != sorted.rend();
-                ++it){
-
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, it->second);
-            modelShader.setMat4("model", model);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-        }
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
