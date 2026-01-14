@@ -46,10 +46,12 @@ void main() {
         sampleTex[i] = vec3(texture(tex, TexCoords.st + offsets[i]));
     }
 
+    /*
     vec3 col = vec3(0.0f);
     for (int i = 0; i < 9; i++) {
         col += sampleTex[i] * edgeDetectionKernel[i];
     }
+    */
 
-    FragColor = vec4(col, 1.0f);
+    FragColor = texture(tex, TexCoords);
 }
