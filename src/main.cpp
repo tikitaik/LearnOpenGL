@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // glfw window creation
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "heheheheheh :)))", NULL, NULL);
     if (window == NULL) 
     {
         std::cout << "Failed to create GLFW window" << '\n';
@@ -69,34 +69,49 @@ int main(int argc, char* argv[])
 
     stbi_set_flip_vertically_on_load(true);
 
-    // configure opengl state
+    // ---------------------- //
+    // Configure OpenGL State //
+    // ---------------------- //
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
+
+    glEnable(GL_PROGRAM_POINT_SIZE);
 
     //glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
+
+    // Shader Setup
     std::string buildPath = getBuildPath(std::string (argv[0]));
+    std::string shaderPath = buildPath + "shaders/";
 
     // back to boring setup stuff now
-    std::string vertPath = "shaders/shader.vert";
-    std::string fragPath = "shaders/shader.frag";
+    Shader shader((shaderPath + "shader.vert").c_str(), (shaderPath + "shader.frag").c_str());
+    Shader modelShader((shaderPath + "model.vert").c_str(), (shaderPath + "model.frag").c_str());
+    Shader quadShader((shaderPath + "quad.vert").c_str(), (shaderPath + "quad.frag").c_str());
+    Shader skyboxShader((shaderPath + "skybox.vert").c_str(), (shaderPath + "skybox.frag").c_str());
 
-    Shader shader((buildPath + vertPath).c_str(), (buildPath + fragPath).c_str());
-    Shader quadShader((buildPath + "shaders/quad.vert").c_str(), 
-            (buildPath + "shaders/quad.frag").c_str());
-    Shader skyboxShader((buildPath + "shaders/skybox.vert").c_str(), 
-            (buildPath + "shaders/skybox.frag").c_str());
-
-    std::string objDirPath = "resources/objects/";
+    std::string objDirPath = buildPath + "resources/objects/";
     std::string backpack = "backpack/backpack.obj";
     std::string buddha = "buddha/buddha.obj";
     std::string bunny = "bunny/bunny.obj";
     std::string dragon = "dragon/dragon.obj";
     std::string sponza = "sponza/sponza.obj";
     std::string statuette = "statuette/statuette.ply";
-    //Model modelObj(objDirPath + backpack);
-    Model modelObj(buildPath + objDirPath + dragon);
+
+    Model modelObj(objDirPath + dragon);
+
+    // obj model uniforms fuck me
+    modelShader.use();
+    modelShader.setInt("material.diffuse", 0);
+    modelShader.setInt("material.specular", 0);
+    modelShader.setFloat("material.shininess", 32.0f);
+    modelShader.setInt("ourTex", 0);
+
+    modelShader.setVec3("dirLight.direction", glm::vec3(1.0f, -1.0f, -1.0f));
+    modelShader.setVec3("dirLight.ambient", glm::vec3(0.05f, 0.15f, 0.05f));
+    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.4, 0.4f, 0.4f));
+    modelShader.setVec3("dirLight.specular", glm::vec3(0.5f, 0.5f, 0.5f));
 
     float cubeVertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
@@ -209,6 +224,11 @@ int main(int argc, char* argv[])
         -1.0f, -1.0f,  -0.5f,  0.0f, 0.0f
     };
 
+
+    // -------------- //
+    // BUFFER OBJECTS //
+    // -------------- //
+
     // frame buffer and attachments
     // use textures as buffer space
     unsigned int fbo;
@@ -244,6 +264,13 @@ int main(int argc, char* argv[])
     }
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
+    // uniform buffer block
+    unsigned int cameraMatrixBlock;
+    glGenBuffers(1, &cameraMatrixBlock);
+    glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
+    glBufferData(GL_UNIFORM_BUFFER, 128, NULL, GL_STATIC_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, cameraMatrixBlock);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     // cube VAO
     unsigned int cubeVAO, cubeVBO;
@@ -256,7 +283,6 @@ int main(int argc, char* argv[])
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-
     glBindVertexArray(0);
 
     // plane VAO
@@ -285,7 +311,7 @@ int main(int argc, char* argv[])
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
 
-    // cube VAO
+    // skybox VAO
     unsigned int skyboxVAO, skyboxVBO;
     glGenVertexArrays(1, &skyboxVAO);
     glGenBuffers(1, &skyboxVBO);
@@ -294,11 +320,11 @@ int main(int argc, char* argv[])
     glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-
     glBindVertexArray(0);
 
-    // load textures
-    // -------------
+    // ------------- //
+    // Load Textures //
+    // ------------- //
     std::string cubeTexturePath = buildPath + "resources/textures/container.jpg";
     std::string floorTexturePath = buildPath + "resources/textures/metal.jpg";
     unsigned int cubeTexture  = loadTexture(cubeTexturePath.c_str());
@@ -313,51 +339,50 @@ int main(int argc, char* argv[])
             buildPath + "resources/textures/skybox/back.jpg"
     };
     unsigned int cubemapTexture = loadCubemap(faces);  
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
 
-    shader.use();
-    shader.setInt("material.diffuse", 0);
-    shader.setInt("material.specular", 0);
-    shader.setFloat("material.shininess", 32.0f);
-    shader.setInt("ourTex", 0);
+    // load the camera projection matrix into the uniform buffer object memory
+    glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
+            (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
+    glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, &projection);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    shader.setVec3("dirLight.direction", glm::vec3(-1.0f, -1.0f, -1.0f));
-    shader.setVec3("dirLight.ambient", glm::vec3(0.05f, 0.05f, 0.05f));
-    shader.setVec3("dirLight.diffuse", glm::vec3(0.4, 0.4f, 0.4f));
-    shader.setVec3("dirLight.specular", glm::vec3(0.5f, 0.5f, 0.5f));
-
+    // --------- //
+    // Main Loop //
+    // --------- //
     while (!glfwWindowShouldClose(window)) {
         
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // input
         processInput(window);
 
-        // rendering commands here
+        // rendering config here
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // set uniforms
+        // get camera matrices
         glm::mat4 model = glm::mat4(1.0f);
-        glm::mat4 projection = glm::perspective(glm::radians(camera.fov), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
 
+        // load view matrix into memory
+        glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
+        glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, &view);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
         shader.use();
-        shader.setMat4("view", view);
-        shader.setMat4("projection", projection);
         shader.setVec3("cameraPos", camera.pos);
 
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-
-        // floor
+        // render floor
         glBindVertexArray(planeVAO);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
 
-        // cubes
+        // render cubes
         glBindVertexArray(cubeVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, cubeTexture);
@@ -371,17 +396,17 @@ int main(int argc, char* argv[])
         shader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        // render obj models
+        modelShader.use();
         model = glm::mat4(1.0f);
-        shader.setMat4("model", model);
+        modelShader.setMat4("model", model);
         modelObj.Draw(shader);
 
-
-        // skybox //
+        // render skybox
         view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
-
         skyboxShader.use();
-        skyboxShader.setMat4("view", view);
         skyboxShader.setMat4("projection", projection);
+        skyboxShader.setMat4("view", view);
 
         glDepthMask(GL_FALSE);
         glDepthFunc(GL_LEQUAL);
@@ -390,12 +415,12 @@ int main(int argc, char* argv[])
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glDepthMask(GL_TRUE);
 
-        // now use normal buffer
+        // do the framebuffer thing
+        quadShader.use();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.1f, 0.4f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        quadShader.use();
+        // render quad
         glBindVertexArray(quadVAO);
         glBindTexture(GL_TEXTURE_2D, texture);
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -404,6 +429,8 @@ int main(int argc, char* argv[])
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    // i think i need to delete all the things here
   
     glfwTerminate();
     return 0;
