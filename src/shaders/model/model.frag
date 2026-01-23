@@ -47,7 +47,8 @@ in vec2 TexCoords;
 uniform vec3 viewPos;
 uniform Material material;
 uniform DirLight dirLight;
-//uniform sampler2D ourTex;
+uniform sampler2D ourTex;
+
 //uniform PointLight pointLights[NR_POINT_LIGHTS];
 //uniform SpotLight spotLight;
 

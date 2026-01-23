@@ -1,6 +1,5 @@
 #include <iostream>
 #include <filesystem>
-#include <map>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -86,10 +85,11 @@ int main(int argc, char* argv[])
     std::string shaderPath = buildPath + "shaders/";
 
     // back to boring setup stuff now
-    Shader shader((shaderPath + "shader.vert").c_str(), (shaderPath + "shader.frag").c_str());
-    Shader modelShader((shaderPath + "model.vert").c_str(), (shaderPath + "model.frag").c_str());
-    Shader quadShader((shaderPath + "quad.vert").c_str(), (shaderPath + "quad.frag").c_str());
-    Shader skyboxShader((shaderPath + "skybox.vert").c_str(), (shaderPath + "skybox.frag").c_str());
+    Shader shader((shaderPath + "shader/shader.vert").c_str(), (shaderPath + "shader/shader.frag").c_str());
+    Shader modelShader((shaderPath + "model/model.vert").c_str(), (shaderPath + "model/model.frag").c_str());
+    Shader quadShader((shaderPath + "quad/quad.vert").c_str(), (shaderPath + "quad/quad.frag").c_str());
+    Shader skyboxShader((shaderPath + "skybox/skybox.vert").c_str(), (shaderPath + "skybox/skybox.frag").c_str());
+    Shader normalShader((shaderPath + "normal/normal.vert").c_str(), (shaderPath + "normal/normal.frag").c_str());
 
     std::string objDirPath = buildPath + "resources/objects/";
     std::string backpack = "backpack/backpack.obj";
@@ -97,76 +97,23 @@ int main(int argc, char* argv[])
     std::string bunny = "bunny/bunny.obj";
     std::string dragon = "dragon/dragon.obj";
     std::string sponza = "sponza/sponza.obj";
-    std::string statuette = "statuette/statuette.ply";
 
-    Model modelObj(objDirPath + dragon);
+    Model modelObj(objDirPath + backpack);
 
     // obj model uniforms fuck me
     modelShader.use();
+    modelShader.addGeomShader((shaderPath + "model/model.geom").c_str());
     modelShader.setInt("material.diffuse", 0);
     modelShader.setInt("material.specular", 0);
     modelShader.setFloat("material.shininess", 32.0f);
     modelShader.setInt("ourTex", 0);
 
     modelShader.setVec3("dirLight.direction", glm::vec3(1.0f, -1.0f, -1.0f));
-    modelShader.setVec3("dirLight.ambient", glm::vec3(0.05f, 0.15f, 0.05f));
+    modelShader.setVec3("dirLight.ambient", glm::vec3(0.5f, 0.5f, 0.5f));
     modelShader.setVec3("dirLight.diffuse", glm::vec3(0.4, 0.4f, 0.4f));
     modelShader.setVec3("dirLight.specular", glm::vec3(0.5f, 0.5f, 0.5f));
 
-    float cubeVertices[] = {
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
-    };
-
-    float planeVertices[] = {
-        // positions          // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
-        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
-        -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
-        5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
-
-        5.0f, -0.5f, -5.0f,  2.0f, 2.0f,								
-        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
-        5.0f, -0.5f,  5.0f,  2.0f, 0.0f
-    };
+    normalShader.addGeomShader((shaderPath + "normal/normal.geom").c_str());
 
     float skyboxVertices[] = {
         // positions          
@@ -272,32 +219,6 @@ int main(int argc, char* argv[])
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, cameraMatrixBlock);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    // cube VAO
-    unsigned int cubeVAO, cubeVBO;
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &cubeVBO);
-    glBindVertexArray(cubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glBindVertexArray(0);
-
-    // plane VAO
-    unsigned int planeVAO, planeVBO;
-    glGenVertexArrays(1, &planeVAO);
-    glGenBuffers(1, &planeVBO);
-    glBindVertexArray(planeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glBindVertexArray(0);
-
     // quad VAO
     unsigned int quadVAO, quadVBO;
     glGenVertexArrays(1, &quadVAO);
@@ -327,8 +248,6 @@ int main(int argc, char* argv[])
     // ------------- //
     std::string cubeTexturePath = buildPath + "resources/textures/container.jpg";
     std::string floorTexturePath = buildPath + "resources/textures/metal.jpg";
-    unsigned int cubeTexture  = loadTexture(cubeTexturePath.c_str());
-    unsigned int floorTexture = loadTexture(floorTexturePath.c_str());
 
     std::vector<std::string> faces {
         buildPath + "resources/textures/skybox/right.jpg",
@@ -363,6 +282,8 @@ int main(int argc, char* argv[])
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+        
 
         // get camera matrices
         glm::mat4 model = glm::mat4(1.0f);
@@ -372,35 +293,19 @@ int main(int argc, char* argv[])
         glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
         glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, &view);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-        shader.use();
-        shader.setVec3("cameraPos", camera.pos);
-
-        // render floor
-        glBindVertexArray(planeVAO);
-        glBindTexture(GL_TEXTURE_2D, floorTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindVertexArray(0);
-
-        // render cubes
-        glBindVertexArray(cubeVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, cubeTexture);
-
-        model = glm::translate(model, glm::vec3(-1.5f, 0.0f, -1.0f));
-        shader.setMat4("model", model);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(1.5f, 0.0f, 0.0f));
-        shader.setMat4("model", model);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
+        
         // render obj models
         modelShader.use();
         model = glm::mat4(1.0f);
         modelShader.setMat4("model", model);
-        modelObj.Draw(shader);
+        modelShader.setFloat("time", currentFrame);
+        modelObj.Draw(modelShader);
+
+        normalShader.use();
+        normalShader.setMat4("projection", projection);
+        normalShader.setMat4("view", view);
+        normalShader.setMat4("model", model);
+        modelObj.Draw(normalShader);
 
         // render skybox
         view = glm::mat4(glm::mat3(camera.GetViewMatrix()));

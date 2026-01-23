@@ -75,6 +75,50 @@ public:
         glDeleteShader(vertex);
         glDeleteShader(fragment);
     }
+    void addGeomShader(const char* geometryPath) {
+
+        // 1. retrieve the source code from filePath
+        std::string geometryCode;
+        std::ifstream gShaderFile;
+        // ensure ifstream objects can throw exceptions:
+        gShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
+        try 
+        {
+            // open files
+            gShaderFile.open(geometryPath);
+            std::stringstream gShaderStream, fShaderStream;
+            // read file's buffer contents into streams
+            gShaderStream << gShaderFile.rdbuf();
+            // close file handlers
+            gShaderFile.close();
+            // convert stream into string
+            geometryCode = gShaderStream.str();
+        }
+        catch(const std::ifstream::failure& e)
+        {
+            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+        }
+        const char* gShaderCode = geometryCode.c_str();
+
+        // 2. compile shaders
+        unsigned int geometry;
+        //int success;
+        //char infoLog[512];
+        
+        // vertex Shader
+        geometry = glCreateShader(GL_GEOMETRY_SHADER);
+        glShaderSource(geometry, 1, &gShaderCode, NULL);
+        glCompileShader(geometry);
+        checkCompileErrors(geometry, "GEOMETRY");
+
+        // shader Program
+        glAttachShader(ID, geometry);
+        glLinkProgram(ID);
+        checkCompileErrors(ID, "PROGRAM");
+    
+        // delete the shaders as they're linked into our program now and no longer necessary
+        glDeleteShader(geometry);
+    }
     // use / activate the shader
     void use()
     {
