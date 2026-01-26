@@ -90,6 +90,8 @@ int main(int argc, char* argv[])
     Shader quadShader((shaderPath + "quad/quad.vert").c_str(), (shaderPath + "quad/quad.frag").c_str());
     Shader skyboxShader((shaderPath + "skybox/skybox.vert").c_str(), (shaderPath + "skybox/skybox.frag").c_str());
     Shader normalShader((shaderPath + "normal/normal.vert").c_str(), (shaderPath + "normal/normal.frag").c_str());
+    Shader instancingShader((shaderPath + "instancing/instancing.vert").c_str(),
+            (shaderPath + "instancing/instancing.frag").c_str());
 
     std::string objDirPath = buildPath + "resources/objects/";
     std::string backpack = "backpack/backpack.obj";
@@ -171,6 +173,17 @@ int main(int argc, char* argv[])
         -1.0f, -1.0f,  -0.5f,  0.0f, 0.0f
     };
 
+    float instancingVerticies[] = {
+        // positions     // colors
+        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+        0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
+        -0.05f, -0.05f,  0.0f, 0.0f, 1.0f,
+
+        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+        0.05f, -0.05f,  0.0f, 1.0f, 0.0f,   
+        0.05f,  0.05f,  0.0f, 1.0f, 1.0f		    		
+    };
+
 
     // -------------- //
     // BUFFER OBJECTS //
@@ -231,6 +244,7 @@ int main(int argc, char* argv[])
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // skybox VAO
     unsigned int skyboxVAO, skyboxVBO;
@@ -241,6 +255,43 @@ int main(int argc, char* argv[])
     glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // instancing objects
+    //
+    // make translations array
+    glm::vec2 translations[100];
+
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            translations[j * 10 + i].x = -float(i) / 5.0f + 0.9f;
+            translations[j * 10 + i].y = float(j) / 5.0f - 0.9f;
+        }
+    }
+
+    unsigned int instanceVBO;
+    glGenBuffers(1, &instanceVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * 100, &translations[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    unsigned int instancingVAO, instancingVBO;
+    glGenVertexArrays(1, &instancingVAO);
+    glGenBuffers(1, &instancingVBO);
+    glBindVertexArray(instancingVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, instancingVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(instancingVerticies), &instancingVerticies, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+    
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glVertexAttribDivisor(2, 1);
     glBindVertexArray(0);
 
     // ------------- //
@@ -283,8 +334,7 @@ int main(int argc, char* argv[])
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-        
-
+        /*
         // get camera matrices
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 view = camera.GetViewMatrix();
@@ -319,6 +369,13 @@ int main(int argc, char* argv[])
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glDepthMask(GL_TRUE);
+
+        */
+
+        // draw tha quads
+        instancingShader.use();
+        glBindVertexArray(instancingVAO);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, 100);
 
         // do the framebuffer thing
         quadShader.use();
