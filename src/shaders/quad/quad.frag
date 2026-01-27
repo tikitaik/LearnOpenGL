@@ -43,13 +43,13 @@ void main() {
     vec3 sampleTex[9];
 
     for (int i = 0; i < 9; i++) {
-        sampleTex[i] = vec3(texture(tex, TexCoords.st + offsets[i]));
+        //sampleTex[i] = vec3(texture(tex, TexCoords.st + offsets[i]));
     }
 
     
     vec3 col = vec3(0.0f);
     for (int i = 0; i < 9; i++) {
-        col += sampleTex[i] * edgeDetectionKernel[i];
+        //col += sampleTex[i] * edgeDetectionKernel[i];
     }
     
     FragColor = texture(tex, TexCoords);
