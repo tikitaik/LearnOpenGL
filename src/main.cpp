@@ -84,7 +84,6 @@ int main(int argc, char* argv[])
     //glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
-
     // Shader Setup
     std::string buildPath = getBuildPath(std::string (argv[0]));
     std::string shaderPath = buildPath + "shaders/";
@@ -108,20 +107,20 @@ int main(int argc, char* argv[])
     std::string rockPath = "rock/rock.obj";
 
     Model rock(objDirPath + rockPath);
-    Model planet(objDirPath + backpackPath);
+    Model planet(objDirPath + planetPath);
 
     // obj model uniforms fuck me
     modelShader.use();
     modelShader.addGeomShader((shaderPath + "model/model.geom").c_str());
     modelShader.setInt("material.diffuse", 0);
     modelShader.setInt("material.specular", 0);
-    modelShader.setFloat("material.shininess", 128.0f);
+    modelShader.setFloat("material.shininess", 32.0f);
     modelShader.setInt("ourTex", 0);
 
     modelShader.setVec3("dirLight.direction", glm::vec3(1.0f, -1.0f, -1.0f));
-    modelShader.setVec3("dirLight.ambient", glm::vec3(0.7f, 0.7f, 0.7f));
-    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.6, 0.6f, 0.6f));
-    modelShader.setVec3("dirLight.specular", glm::vec3(0.9f, 0.9f, 0.9f));
+    modelShader.setVec3("dirLight.ambient", glm::vec3(0.1f, 0.1f, 0.1f));
+    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.4, 0.4f, 0.4f));
+    modelShader.setVec3("dirLight.specular", glm::vec3(0.7f, 0.7f, 0.7f));
 
     normalShader.addGeomShader((shaderPath + "normal/normal.geom").c_str());
 
@@ -521,9 +520,9 @@ unsigned int loadTexture(char const * path) {
         if (nrChannels == 1) {
             format = GL_RED;
         } else if (nrChannels == 3) {
-            format = GL_RGB;
+            format = GL_SRGB;
         } else if (nrChannels == 4) {
-            format = GL_RGBA;
+            format = GL_SRGB_ALPHA;
         }
 
         glBindTexture(GL_TEXTURE_2D, textureID);
@@ -559,7 +558,7 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
 
         if (data) {
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                    0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+                    0, GL_SRGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
         } else {
             std::cout << "Cubemap texture failed to load at path: " << faces[i] << '\n';
         }
