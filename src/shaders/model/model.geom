@@ -20,6 +20,7 @@ vec3 GetNormal();
 
 void main() {
     
+    Normal = GetNormal();
 
     gl_Position = gl_in[0].gl_Position;
     TexCoords = gs_in[0].texCoords;
