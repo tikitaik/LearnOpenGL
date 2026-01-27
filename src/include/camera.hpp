@@ -31,7 +31,7 @@ public:
 
     bool firstMouse;
 
-    const float CAMERASPEED = 20.0f;
+    const float CAMERASPEED = 2.5f;
 
     Camera(glm::vec3 posIn, glm::vec3 frontIn, glm::vec3 upIn, int screenWidth, int screenHeight) {
 
