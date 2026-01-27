@@ -12,8 +12,8 @@
 #include "model.hpp"
 #include "shader.hpp"
 
-#define WIDTH 800
-#define HEIGHT 600
+#define WIDTH 1280
+#define HEIGHT 720
 
 #define ASTEROID_AMOUNT 100000
 
@@ -76,15 +76,12 @@ int main(int argc, char* argv[])
     // Configure OpenGL State //
     // ---------------------- //
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-
-    glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_MULTISAMPLE);
+    glEnable(GL_CULL_FACE);
 
-    //glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-
-    // Shader Setup
+    // ------------ //
+    // Shader Setup //
+    // ------------ //
     std::string buildPath = getBuildPath(std::string (argv[0]));
     std::string shaderPath = buildPath + "shaders/";
 
@@ -106,15 +103,14 @@ int main(int argc, char* argv[])
     std::string planetPath = "planet/planet.obj";
     std::string rockPath = "rock/rock.obj";
 
-    Model rock(objDirPath + rockPath);
-    Model planet(objDirPath + planetPath);
+    Model backpack(objDirPath + backpackPath);
 
     // obj model uniforms fuck me
     modelShader.use();
     modelShader.addGeomShader((shaderPath + "model/model.geom").c_str());
     modelShader.setInt("material.diffuse", 0);
     modelShader.setInt("material.specular", 0);
-    modelShader.setFloat("material.shininess", 32.0f);
+    modelShader.setFloat("material.shininess", 200.0f);
     modelShader.setInt("ourTex", 0);
 
     modelShader.setVec3("dirLight.direction", glm::vec3(1.0f, -1.0f, -1.0f));
@@ -136,94 +132,59 @@ int main(int argc, char* argv[])
          1.0f,  1.0f,  1.0f, 1.0f
     };
 
-    float cubeVertices[] = {
-        // positions       
-        -0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f,  0.5f, -0.5f,
-         0.5f,  0.5f, -0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-
-        -0.5f, -0.5f,  0.5f,
-         0.5f, -0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-
-         0.5f,  0.5f,  0.5f,
-         0.5f,  0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-
-        -0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f,  0.5f,
-         0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f, -0.5f,
-
-        -0.5f,  0.5f, -0.5f,
-         0.5f,  0.5f, -0.5f,
-         0.5f,  0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f
+    float planeVertices[] = {
+        // positions           // textures
+        -10.0f, -0.5f,  10.0f, 0.0f, 0.0f,
+         10.0f, -0.5f,  10.0f, 10.0f, 0.0f,
+         10.0f, -0.5f, -10.0f, 10.0f, 10.0f,
+         10.0f, -0.5f, -10.0f, 10.0f, 10.0f,
+        -10.0f, -0.5f, -10.0f, 0.0f, 10.0f,
+        -10.0f, -0.5f,  10.0f, 0.0f, 0.0f
     };
 
-    float skyboxVertices[] = {
-        // positions          
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
+    float cubeVertices[] = {
+        // positions       
+         0.5f,  0.5f, -0.5f, 0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f, 0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f, 0.0f, 0.0f,
 
-        -1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f, 1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f, 0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, 0.0f, 0.0f,
 
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
+        -0.5f,  0.5f,  0.5f, 0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, 0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f, 0.0f, 0.0f,
 
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
+         0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+         0.5f,  0.5f, -0.5f, 1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f, 0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
 
-        -1.0f,  1.0f, -1.0f,
-        1.0f,  1.0f, -1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f, 1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f, 1.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
 
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-        1.0f, -1.0f,  1.0f
+         0.5f,  0.5f,  0.5f, 0.0f, 0.0f,
+         0.5f,  0.5f, -0.5f, 1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f, 1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f, 0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f, 0.0f, 0.0f
     };
 
     // -------------- //
@@ -291,6 +252,20 @@ int main(int argc, char* argv[])
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+    // for the floor
+    unsigned int planeVAO, planeVBO;
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     // cube
     unsigned int cubeVAO, cubeVBO;
     glGenVertexArrays(1, &cubeVAO);
@@ -299,7 +274,9 @@ int main(int argc, char* argv[])
     glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -311,60 +288,12 @@ int main(int argc, char* argv[])
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, cameraMatrixBlock);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    // skybox VAO
-    unsigned int skyboxVAO, skyboxVBO;
-    glGenVertexArrays(1, &skyboxVAO);
-    glGenBuffers(1, &skyboxVBO);
-    glBindVertexArray(skyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    // asteroids
-    glm::mat4 asteroidTranslations[ASTEROID_AMOUNT];
-    getAsteroidTranslations(asteroidTranslations);
-
-    unsigned int asteroidTranslationVBO;
-    glGenBuffers(1, &asteroidTranslationVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, asteroidTranslationVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::mat4) * ASTEROID_AMOUNT, &asteroidTranslations[0], GL_STATIC_DRAW);
-
-    for (unsigned int i = 0; i < rock.meshes.size(); i++) {
-        
-        glBindVertexArray(rock.meshes[i].VAO);
-
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
-        glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(1 * sizeof(glm::vec4)));
-        glEnableVertexAttribArray(5);
-        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(2 * sizeof(glm::vec4)));
-        glEnableVertexAttribArray(6);
-        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(3 * sizeof(glm::vec4)));
-
-        glVertexAttribDivisor(3, 1);
-        glVertexAttribDivisor(4, 1);
-        glVertexAttribDivisor(5, 1);
-        glVertexAttribDivisor(6, 1);
-    }
-
     // ------------- //
     // Load Textures //
     // ------------- //
 
-    std::vector<std::string> faces {
-        buildPath + "resources/textures/skybox/right.jpg",
-            buildPath + "resources/textures/skybox/left.jpg",
-            buildPath + "resources/textures/skybox/top.jpg",
-            buildPath + "resources/textures/skybox/bottom.jpg",
-            buildPath + "resources/textures/skybox/front.jpg",
-            buildPath + "resources/textures/skybox/back.jpg"
-    };
-    unsigned int cubemapTexture = loadCubemap(faces);  
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+    unsigned int cubeTexture = loadTexture((buildPath + "resources/textures/container.jpg").c_str());
+    unsigned int planeTexture = loadTexture((buildPath + "resources/textures/metal.jpg").c_str());
 
     // load the camera projection matrix into the uniform buffer object memory
     glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
@@ -373,7 +302,10 @@ int main(int argc, char* argv[])
     glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, &projection);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    screenQuadShader.setInt("tex", 0);
+    glfwSwapInterval(0);
+
+    shader.use();
+    shader.setInt("tex", 0);
 
     // --------- //
     // Main Loop //
@@ -391,10 +323,8 @@ int main(int argc, char* argv[])
 
         // rendering config here
         glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
     
         // get camera matrices
         glm::mat4 model = glm::mat4(1.0f);
@@ -405,39 +335,30 @@ int main(int argc, char* argv[])
         glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, &view);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
+        // Actual stuff happens here //
+
+        shader.use();
+        shader.setMat4("model", model);
+
+        glBindVertexArray(planeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, planeTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        model = glm::translate(model, glm::vec3(3.0f, 0.0f, 0.0f));
+        shader.setVec3("viewPos", camera.pos);
+        shader.setMat4("model", model);
+        glBindVertexArray(cubeVAO);
+        glBindTexture(GL_TEXTURE_2D, cubeTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
         // render obj models
         modelShader.use();
-
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(0.0f, 1.2f, 0.0f));
         modelShader.setVec3("viewPos", camera.pos);
         modelShader.setMat4("model", model);
-        planet.Draw(modelShader);
-
-
-        asteroidShader.use();
-        //asteroidShader.setInt("tex", 0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, rock.textures_loaded[0].id);
-        for (unsigned int i = 0; i < rock.meshes.size(); i++) {
-            glBindVertexArray(rock.meshes[i].VAO);
-            glDrawElementsInstanced(
-                    GL_TRIANGLES, rock.meshes[i].indices.size(), GL_UNSIGNED_INT, 0, ASTEROID_AMOUNT
-                    );
-        }
-
-        // render skybox
-        view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
-        skyboxShader.use();
-        skyboxShader.setMat4("projection", projection);
-        skyboxShader.setMat4("view", view);
-
-        glDepthMask(GL_FALSE);
-        glDepthFunc(GL_LEQUAL);
-        glBindVertexArray(skyboxVAO);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glDepthMask(GL_TRUE);
+        backpack.Draw(modelShader);
 
         // ======================= //
         // FRAMEBUFFER LEAVE ALONE //
@@ -451,7 +372,6 @@ int main(int argc, char* argv[])
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
 
         screenQuadShader.use();
         glBindVertexArray(quadVAO);
@@ -515,18 +435,22 @@ unsigned int loadTexture(char const * path) {
     
     //std::cout << width << " " << height << " " << nrChannels << '\n';
 
+    GLenum internalFormat, dataFormat;
+
     if (data) {
-        GLenum format = GL_RED;
+        internalFormat = dataFormat = GL_RED;
         if (nrChannels == 1) {
-            format = GL_RED;
+            internalFormat = dataFormat = GL_RED;
         } else if (nrChannels == 3) {
-            format = GL_SRGB;
+            internalFormat = GL_SRGB;
+            dataFormat = GL_RGB;
         } else if (nrChannels == 4) {
-            format = GL_SRGB_ALPHA;
+            internalFormat = GL_SRGB_ALPHA;
+            dataFormat = GL_RGBA;
         }
 
         glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, 
+        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, 
                 GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 

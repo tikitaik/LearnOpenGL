@@ -1,8 +1,8 @@
 #version 330 core
 
-out vec4 FragColor;
+in vec2 TexCoord;
 
-in vec2 TexCoords;
+out vec4 FragColor;
 
 uniform sampler2D tex;
 
@@ -10,9 +10,9 @@ vec4 mandelbrotSet(vec4 fragCoord);
 
 void main()
 {
-    //FragColor = texture(tex, TexCoords);
+    FragColor = texture(tex, TexCoord);
     //FragColor = vec4(0.0f, 1.0f, 0.0f, 1.0f);
-    FragColor = mandelbrotSet(gl_FragCoord);
+    //FragColor = mandelbrotSet(gl_FragCoord);
 }
 
 vec4 mandelbrotSet(vec4 fragCoord) {

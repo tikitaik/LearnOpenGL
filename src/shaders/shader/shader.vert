@@ -8,13 +8,13 @@ layout (std140, binding = 0) uniform Matrices {
     mat4 view;
 };
 
-out vec2 TexCoords; 
+out vec2 TexCoord; 
 
 uniform mat4 model;
 
 void main()
 {
-    TexCoords = aTex;
+    TexCoord = aTex;
     // right to left mult cos of matrices
-    gl_Position = projection * view * model *  vec4(aPos, 1.0);
+    gl_Position = projection * view * model *  vec4(aPos, 1.0f);
 }
