@@ -227,18 +227,6 @@ int main(int argc, char* argv[])
         1.0f, -1.0f,  1.0f
     };
 
-    float asteroidVerticies[] = {
-        // positions     // colors
-        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
-        0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
-        -0.05f, -0.05f,  0.0f, 0.0f, 1.0f,
-
-        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
-        0.05f, -0.05f,  0.0f, 1.0f, 0.0f,   
-        0.05f,  0.05f,  0.0f, 1.0f, 1.0f		    		
-    };
-
-
     // -------------- //
     // BUFFER OBJECTS //
     // -------------- //
@@ -258,6 +246,16 @@ int main(int argc, char* argv[])
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, screenTextureMultisample, 0);
 
+    // fucking make sure you attack your render buffer object to the correct framebuffer
+    // lest you have it attached to the wrong frambuffer for depth testing and youre doing the most
+    // useless depth testing on one quad rather than when you are rendering bruh
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
     unsigned int screenFBO;
     glGenFramebuffers(1, &screenFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
@@ -275,12 +273,6 @@ int main(int argc, char* argv[])
     // you can use glReadPixels but it is slow
     // renderbuffers are good for depth and stencil buffers because of the readonly
     // renderbuffer good for when not sampling
-    unsigned int rbo;
-    glGenRenderbuffers(1, &rbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
@@ -360,21 +352,6 @@ int main(int argc, char* argv[])
         glVertexAttribDivisor(6, 1);
     }
 
-    unsigned int asteroidVAO, asteroidVBO;
-    glGenVertexArrays(1, &asteroidVAO);
-    glGenBuffers(1, &asteroidVBO);
-    glBindVertexArray(asteroidVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, asteroidVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(asteroidVerticies), &asteroidVerticies, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-    
-
     // ------------- //
     // Load Textures //
     // ------------- //
@@ -410,10 +387,15 @@ int main(int argc, char* argv[])
 
         processInput(window);
 
-        // rendering config here
-        glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // rendering config here
+        glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
+        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
     
         // get camera matrices
         glm::mat4 model = glm::mat4(1.0f);
@@ -423,19 +405,18 @@ int main(int argc, char* argv[])
         glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
         glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, &view);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
-        
-/*
+
         // render obj models
         modelShader.use();
 
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
-        model = glm::scale(model,glm::vec3(4.0f, 4.0f, 4.0f));
         modelShader.setMat4("model", model);
         planet.Draw(modelShader);
 
+
         asteroidShader.use();
-        asteroidShader.setInt("tex", 0);
+        //asteroidShader.setInt("tex", 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, rock.textures_loaded[0].id);
         for (unsigned int i = 0; i < rock.meshes.size(); i++) {
@@ -444,9 +425,7 @@ int main(int argc, char* argv[])
                     GL_TRIANGLES, rock.meshes[i].indices.size(), GL_UNSIGNED_INT, 0, ASTEROID_AMOUNT
                     );
         }
-*/
 
-/*
         // render skybox
         view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
         skyboxShader.use();
@@ -459,12 +438,6 @@ int main(int argc, char* argv[])
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glDepthMask(GL_TRUE);
-*/
-
-        shader.use();
-        shader.setMat4("model", model);
-        glBindVertexArray(cubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // ======================= //
         // FRAMEBUFFER LEAVE ALONE //
@@ -472,10 +445,12 @@ int main(int argc, char* argv[])
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampleFBO);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFBO);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBlitFramebuffer(0, 0, WIDTH, HEIGHT, 0, 0, WIDTH, HEIGHT, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
         glDisable(GL_DEPTH_TEST);
 
         screenQuadShader.use();
@@ -483,6 +458,7 @@ int main(int argc, char* argv[])
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, screenTexture);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
@@ -638,8 +614,8 @@ std::string getBuildPath(std::string argv_0) {
 void getAsteroidTranslations(glm::mat4 asteroidTranslations[ASTEROID_AMOUNT]) {
 
     srand(glfwGetTime());
-    float radius = 150.0f;
-    float offset = 25.0f;
+    float radius = 30.0f;
+    float offset = 20.0f;
 
     for (unsigned int i = 0; i < ASTEROID_AMOUNT; i++) {
 
