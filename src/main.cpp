@@ -100,8 +100,10 @@ int main(int argc, char* argv[])
     std::string sponzaPath = "sponza/sponza.obj";
     std::string planetPath = "planet/planet.obj";
     std::string rockPath = "rock/rock.obj";
+    std::string shadowHedgehogPath = "shadow/scene.gltf";
 
     Model backpack(objDirPath + backpackPath);
+    Model shadowTheHedgehog(objDirPath + shadowHedgehogPath);
 
     // obj model uniforms fuck me
     modelShader.use();
@@ -386,9 +388,10 @@ int main(int argc, char* argv[])
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 1.2f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.06f));
+        model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         depthMapShader.setMat4("model", model);
-        backpack.Draw(depthMapShader);
+        shadowTheHedgehog.Draw(depthMapShader);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -396,6 +399,7 @@ int main(int argc, char* argv[])
 
         glViewport(0, 0, WIDTH, HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glActiveTexture(GL_TEXTURE1);
@@ -425,9 +429,10 @@ int main(int argc, char* argv[])
 
         // render obj models
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 1.2f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.06f));
+        model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         shader.setMat4("model", model);
-        backpack.Draw(shader);
+        shadowTheHedgehog.Draw(shader);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
