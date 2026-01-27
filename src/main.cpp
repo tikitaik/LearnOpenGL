@@ -108,20 +108,20 @@ int main(int argc, char* argv[])
     std::string rockPath = "rock/rock.obj";
 
     Model rock(objDirPath + rockPath);
-    Model planet(objDirPath + planetPath);
+    Model planet(objDirPath + backpackPath);
 
     // obj model uniforms fuck me
     modelShader.use();
     modelShader.addGeomShader((shaderPath + "model/model.geom").c_str());
     modelShader.setInt("material.diffuse", 0);
     modelShader.setInt("material.specular", 0);
-    modelShader.setFloat("material.shininess", 32.0f);
+    modelShader.setFloat("material.shininess", 128.0f);
     modelShader.setInt("ourTex", 0);
 
     modelShader.setVec3("dirLight.direction", glm::vec3(1.0f, -1.0f, -1.0f));
-    modelShader.setVec3("dirLight.ambient", glm::vec3(0.5f, 0.5f, 0.5f));
-    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.4, 0.4f, 0.4f));
-    modelShader.setVec3("dirLight.specular", glm::vec3(0.5f, 0.5f, 0.5f));
+    modelShader.setVec3("dirLight.ambient", glm::vec3(0.7f, 0.7f, 0.7f));
+    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.6, 0.6f, 0.6f));
+    modelShader.setVec3("dirLight.specular", glm::vec3(0.9f, 0.9f, 0.9f));
 
     normalShader.addGeomShader((shaderPath + "normal/normal.geom").c_str());
 
@@ -411,6 +411,7 @@ int main(int argc, char* argv[])
 
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
+        modelShader.setVec3("viewPos", camera.pos);
         modelShader.setMat4("model", model);
         planet.Draw(modelShader);
 
