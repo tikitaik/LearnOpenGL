@@ -24,6 +24,13 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 unsigned int loadTexture(char const * path);
 unsigned int loadCubemap(std::vector<std::string> faces);
 
+// custom rendering functions
+void renderScene(Shader shader, unsigned int planeVAO, unsigned int cubeVAO, 
+        unsigned int planeTexture, unsigned int cubeTexture, Model shadowTheHedgehog); 
+void renderFrameBufferToScreen(unsigned int multisampleFBO, unsigned int screenFBO,
+        unsigned int screenTexture, Shader screenQuadShader, unsigned int quadVAO);  
+
+// custom silly functions
 std::string getBuildPath(std::string command);
 void getAsteroidTranslations(glm::mat4 asteroidTranslations[ASTEROID_AMOUNT]);
 
@@ -333,10 +340,7 @@ int main(int argc, char* argv[])
     float near_plane = 1.0f, far_plane = 7.5f;
     const glm::vec3 lightPos = glm::vec3(-2.0f, 4.0f, -1.0f);
     glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-    glm::mat4 lightView = glm::lookAt(
-            lightPos,
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
 
@@ -355,11 +359,8 @@ int main(int argc, char* argv[])
 
         // rendering config here
         glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
-        glClearColor(0.01f, 0.01f, 0.01f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
         // get camera matrices
-        glm::mat4 model = glm::mat4(1.0f);
         glm::mat4 view = camera.GetViewMatrix();
 
         // load view matrix into memory
@@ -370,37 +371,17 @@ int main(int argc, char* argv[])
         // Actual stuff happens here //
 
         // DEPTH MAP //
-
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-        glClear(GL_DEPTH_BUFFER_BIT);
 
         depthMapShader.use();
         depthMapShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 
-        depthMapShader.setMat4("model", model);
-        glBindVertexArray(planeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        model = glm::translate(model, glm::vec3(3.0f, 0.0f, 0.0f));
-        depthMapShader.setMat4("model", model);
-        glBindVertexArray(cubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(0.06f));
-        model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        depthMapShader.setMat4("model", model);
-        shadowTheHedgehog.Draw(depthMapShader);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        renderScene(depthMapShader, planeVAO, cubeVAO, planeTexture, cubeTexture, shadowTheHedgehog); 
 
         // Actual Rendering //
-
         glViewport(0, 0, WIDTH, HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -413,48 +394,11 @@ int main(int argc, char* argv[])
         shader.setVec3("lightPos", lightPos);
         shader.setVec3("viewPos", camera.pos);
         shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        
-        model = glm::mat4(1.0f);
-        shader.setMat4("model", model);
-        glBindVertexArray(planeVAO);
-        glBindTexture(GL_TEXTURE_2D, planeTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(3.0f, 0.0f, 0.0f));
-        shader.setMat4("model", model);
-        glBindVertexArray(cubeVAO);
-        glBindTexture(GL_TEXTURE_2D, cubeTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        renderScene(shader, planeVAO, cubeVAO, planeTexture, cubeTexture, shadowTheHedgehog); 
 
-        // render obj models
-        model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(0.06f));
-        model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        shader.setMat4("model", model);
-        shadowTheHedgehog.Draw(shader);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        // ======================= //
-        // FRAMEBUFFER LEAVE ALONE //
-        // ======================= //
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampleFBO);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFBO);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glBlitFramebuffer(0, 0, WIDTH, HEIGHT, 0, 0, WIDTH, HEIGHT, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        screenQuadShader.use();
-        glBindVertexArray(quadVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, screenTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
+        renderFrameBufferToScreen(multisampleFBO, screenFBO, screenTexture,
+                screenQuadShader, quadVAO);
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
@@ -465,6 +409,36 @@ int main(int argc, char* argv[])
   
     glfwTerminate();
     return 0;
+}
+
+void renderScene(Shader shader, unsigned int planeVAO, unsigned int cubeVAO, 
+        unsigned int planeTexture, unsigned int cubeTexture, Model shadowTheHedgehog) {
+
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glm::mat4 model = glm::mat4(1.0f);
+    shader.setMat4("model", model);
+    glBindVertexArray(planeVAO);
+    glBindTexture(GL_TEXTURE_2D, planeTexture);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(3.0f, 0.0f, 0.0f));
+    shader.setMat4("model", model);
+    glBindVertexArray(cubeVAO);
+    glBindTexture(GL_TEXTURE_2D, cubeTexture);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // render obj models
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(0.0f, -0.5f, 0.0f));
+    model = glm::scale(model, glm::vec3(0.05f));
+    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    shader.setMat4("model", model);
+    shadowTheHedgehog.Draw(shader);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
@@ -575,6 +549,25 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
     stbi_set_flip_vertically_on_load(true);
 
     return textureID;
+}
+
+void renderFrameBufferToScreen(unsigned int multisampleFBO, unsigned int screenFBO,
+        unsigned int screenTexture, Shader screenQuadShader, unsigned int quadVAO)  {
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampleFBO);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFBO);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glBlitFramebuffer(0, 0, WIDTH, HEIGHT, 0, 0, WIDTH, HEIGHT, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        screenQuadShader.use();
+        glBindVertexArray(quadVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, screenTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 std::string getBuildPath(std::string argv_0) {

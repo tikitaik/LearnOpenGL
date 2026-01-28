@@ -16,14 +16,14 @@ uniform vec3 lightPos;
 uniform vec3 viewPos;
 
 vec3 BlinnPhong();
-float ShadowCalculation(vec4 fragPosLightSpace);
+float ShadowCalculation(vec4 fragPosLightSpace, float bias);
 vec4 MandelbrotSet(vec4 fragCoord);
 
 void main() {
     FragColor = vec4(BlinnPhong(), 1.0f);
 }
 
-float ShadowCalculation(vec4 fragPosLightSpace) {
+float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
 
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
@@ -31,7 +31,18 @@ float ShadowCalculation(vec4 fragPosLightSpace) {
     float closestDepth = texture(shadowMap, projCoords.xy).r;
     float currentDepth = projCoords.z;
 
-    float shadow = currentDepth > closestDepth ? 1.0f : 0.0f;
+    float shadow = 0.0f;
+    vec2 texelSize = 1.0f / textureSize(shadowMap, 0);
+
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+
+            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias > pcfDepth ? 1.0f : 0.0f;
+        }
+    }
+
+    shadow /= 9.0f;
 
     return shadow;
 }
@@ -58,7 +69,8 @@ vec3 BlinnPhong() {
     vec3 specular = spec * lightColor;
 
     // calculate shadow
-    float shadow = ShadowCalculation(fs_in.FragPosLightSpace);
+    float bias = max(0.05f * (1.0f - dot(normal, lightDir)), 0.005f);
+    float shadow = ShadowCalculation(fs_in.FragPosLightSpace, bias);
     vec3 lighting = (ambient + (1.0f - shadow) * (diffuse + specular)) * color;
 
     return lighting;
