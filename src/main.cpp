@@ -39,9 +39,9 @@ float deltaTime = 0.0f; // time between current and last frame
 float lastFrame = 0.0f; // time from start to last frame being rendered
 
 // camera
-const glm::vec3 initCameraPos   = glm::vec3(0.0f, 0.0f, 3.0f);
-const glm::vec3 initCameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-const glm::vec3 initCameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
+const glm::vec3 initCameraPos   = glm::vec3(0.0f,  3.0f,  4.0f);
+const glm::vec3 initCameraFront = glm::vec3(0.0f, -0.5f, -1.0f);
+const glm::vec3 initCameraUp    = glm::vec3(0.0f,  1.0f,  0.0f);
 
 Camera camera(initCameraPos, initCameraFront, initCameraUp, WIDTH, HEIGHT);
 
@@ -138,12 +138,12 @@ int main(int argc, char* argv[])
 
     float planeVertices[] = {
         // positions           //normals         // textures
-        -10.0f, -0.5f,  10.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-         10.0f, -0.5f,  10.0f, 0.0f, 1.0f, 0.0f, 10.0f, 0.0f,
-         10.0f, -0.5f, -10.0f, 0.0f, 1.0f, 0.0f, 10.0f, 10.0f,
-         10.0f, -0.5f, -10.0f, 0.0f, 1.0f, 0.0f, 10.0f, 10.0f,
-        -10.0f, -0.5f, -10.0f, 0.0f, 1.0f, 0.0f, 0.0f, 10.0f,
-        -10.0f, -0.5f,  10.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f
+        -1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+         1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f,
+         1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.0f,
+         1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.0f,
+        -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 2.0f,
+        -1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f
     };
 
     float cubeVertices[] = {
@@ -263,6 +263,24 @@ int main(int argc, char* argv[])
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    unsigned int depthCubeMap;
+    glGenTextures(1, &depthCubeMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMap);
+    for (int i = 0; i < 6; i++) {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 
+                SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); 
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubeMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     // screen quad
     unsigned int quadVAO, quadVBO;
     glGenVertexArrays(1, &quadVAO);
@@ -322,7 +340,7 @@ int main(int argc, char* argv[])
     // ------------- //
 
     unsigned int cubeTexture = loadTexture((buildPath + "resources/textures/container.jpg").c_str());
-    unsigned int planeTexture = loadTexture((buildPath + "resources/textures/metal.jpg").c_str());
+    unsigned int planeTexture = loadTexture((buildPath + "resources/textures/container2.png").c_str());
 
     // load the camera projection matrix into the uniform buffer object memory
     glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
@@ -418,21 +436,55 @@ void renderScene(Shader shader, unsigned int planeVAO, unsigned int cubeVAO,
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glm::mat4 model = glm::mat4(1.0f);
-    shader.setMat4("model", model);
+
+    // planes
     glBindVertexArray(planeVAO);
     glBindTexture(GL_TEXTURE_2D, planeTexture);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(3.0f, 0.0f, 0.0f));
-    shader.setMat4("model", model);
+    glm::vec3 planeTranslations[6] = {
+        glm::vec3( 5.0f, 5.0f,  0.0f),
+        glm::vec3(-5.0f, 5.0f,  0.0f),
+        glm::vec3( 0.0f, 10.0f, 0.0f),
+        glm::vec3( 0.0f, 0.0f,  0.0f),
+        glm::vec3( 0.0f, 5.0f, -5.0f),
+        glm::vec3( 0.0f, 5.0f,  5.0f)
+    };
+
+    float planeRotationAngles[6] = { 90.0f, 90.0f, 180.0f, 0.0f, 90.0f, 90.0f };
+    glm::vec3 planeRotationAxes[6] = {
+        glm::vec3( 0.0f, 0.0f,  1.0f),
+        glm::vec3( 0.0f, 0.0f, -1.0f),
+        glm::vec3( 1.0f, 0.0f,  0.0f),
+        glm::vec3( 1.0f, 0.0f,  0.0f),
+        glm::vec3( 1.0f, 0.0f,  0.0f),
+        glm::vec3(-1.0f, 0.0f,  0.0f)
+    };
+
+    for (int i = 0; i < 6; i++) {
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, planeTranslations[i]);
+        model = glm::rotate(model, glm::radians(planeRotationAngles[i]), planeRotationAxes[i]);
+        model = glm::scale(model, glm::vec3(5.0f));
+        shader.setMat4("model", model);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+
+
     glBindVertexArray(cubeVAO);
     glBindTexture(GL_TEXTURE_2D, cubeTexture);
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(3.0f, 0.5f, 0.0f));
+    shader.setMat4("model", model);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-2.0f, 0.5f, -2.0f));
+    shader.setMat4("model", model);
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
     // render obj models
     model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, -0.5f, 0.0f));
     model = glm::scale(model, glm::vec3(0.05f));
     model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     shader.setMat4("model", model);
