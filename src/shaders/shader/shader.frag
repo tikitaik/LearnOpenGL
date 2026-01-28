@@ -6,43 +6,55 @@ in VS_OUT {
     vec3 FragPos;
     vec3 Normal;
     vec2 TexCoords;
-    vec4 FragPosLightSpace;
 } fs_in;
 
 uniform sampler2D diffuseTexture;
-uniform sampler2D shadowMap;
+uniform samplerCube depthMap;
 
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
+uniform float far_plane;
+
 vec3 BlinnPhong();
-float ShadowCalculation(vec4 fragPosLightSpace, float bias);
+float ShadowCalculation(vec3 fragPos);
 vec4 MandelbrotSet(vec4 fragCoord);
 
 void main() {
     FragColor = vec4(BlinnPhong(), 1.0f);
 }
 
-float ShadowCalculation(vec4 fragPosLightSpace, float bias) {
+float ShadowCalculation(vec3 fragPos) {
 
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
+    vec3 fragToLight = fragPos - lightPos;
+    float closestDepth = texture(depthMap, fragToLight).r;
 
-    float closestDepth = texture(shadowMap, projCoords.xy).r;
-    float currentDepth = projCoords.z;
+    closestDepth *= far_plane;
+    float currentDepth = length(fragToLight);
 
-    float shadow = 0.0f;
-    vec2 texelSize = 1.0f / textureSize(shadowMap, 0);
+    float shadow  = 0.0;
+    float bias    = 0.05; 
+    float samples = 4.0;
+    float viewDistance = length(viewPos - fragPos);
+    float diskRadius = (1.0f + (viewDistance / far_plane)) / 25.0f;
 
-    for (int x = -1; x <= 1; x++) {
-        for (int y = -1; y <= 1; y++) {
+    vec3 sampleOffsetDirections[20] = vec3[] (
+         vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
+         vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+         vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+         vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+         vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+    );
 
-            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-            shadow += currentDepth - bias > pcfDepth ? 1.0f : 0.0f;
-        }
+    for(int i = 0; i < 20; i++) {
+
+        float closestDepth = texture(depthMap, fragToLight + sampleOffsetDirections[i] * diskRadius).r; 
+        closestDepth *= far_plane;   // undo mapping [0;1]
+        if(currentDepth - bias > closestDepth)
+            shadow += 1.0;
     }
 
-    shadow /= 9.0f;
+    shadow /= float(samples);
 
     return shadow;
 }
@@ -70,7 +82,7 @@ vec3 BlinnPhong() {
 
     // calculate shadow
     float bias = max(0.05f * (1.0f - dot(normal, lightDir)), 0.005f);
-    float shadow = ShadowCalculation(fs_in.FragPosLightSpace, bias);
+    float shadow = ShadowCalculation(fs_in.FragPos);
     vec3 lighting = (ambient + (1.0f - shadow) * (diffuse + specular)) * color;
 
     return lighting;
