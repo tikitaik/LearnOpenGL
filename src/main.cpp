@@ -99,23 +99,52 @@ int main(int argc, char* argv[])
     std::string buildPath = getBuildPath(std::string(argv[0]));
     std::string shaderPath = buildPath + "shaders/";
 
-    glm::vec3 lightPos = glm::vec3(0.0f, 5.0f, 0.0f);
+    glm::vec3 lightPos(0.0f, 5.0f, 0.0f);
+    
+    std::vector<glm::vec3> lightPositions;
+    lightPositions.push_back(glm::vec3( 0.0f, 0.5f,  1.5f));
+    lightPositions.push_back(glm::vec3(-4.0f, 0.5f, -3.0f));
+    lightPositions.push_back(glm::vec3( 3.0f, 0.5f,  1.0f));
+    lightPositions.push_back(glm::vec3(-0.8f,  2.4f, -1.0f));
+    // colors
+    std::vector<glm::vec3> lightColors;
+    lightColors.push_back(glm::vec3(5.0f,   5.0f,  5.0f));
+    lightColors.push_back(glm::vec3(10.0f,  0.0f,  0.0f));
+    lightColors.push_back(glm::vec3(0.0f,   0.0f,  15.0f));
+    lightColors.push_back(glm::vec3(0.0f,   5.0f,  0.0f));
+
     float far_plane = 25.0f;
 
     // back to boring setup stuff now
     Shader blinnphongShader(buildPath, "blinnphong");
+    Shader bloomShader(buildPath, "bloom");
+    Shader bloomBlendShader(buildPath, "bloomblend");
     Shader depthMapShader(buildPath, "depthmap");
+    Shader gaussBlurShader(buildPath, "gaussblur");
+    Shader lightBoxShader(buildPath, "lightbox");
+    Shader hdrScreenShader(buildPath, "hdr");
     Shader modelShader(buildPath, "model");
     Shader normalMapShader(buildPath, "normalmap");
     Shader parallaxShader(buildPath, "parallax");
     Shader screenQuadShader(buildPath, "screenquad");
-    Shader hdrScreenShader(buildPath, "hdr");
 
     // bruh ass uniforms
-
     blinnphongShader.use();
     blinnphongShader.setInt("diffuseMap", 0);
     blinnphongShader.setVec3("lightPos", lightPos);
+
+    bloomShader.use();
+    bloomShader.setInt("diffuseMap", 0);
+
+    for (unsigned int i = 0; i < lightPositions.size(); i++)
+    {
+        bloomShader.setVec3("lights[" + std::to_string(i) + "].Position", lightPositions[i]);
+        bloomShader.setVec3("lights[" + std::to_string(i) + "].Color", lightColors[i]);
+    }
+
+    bloomBlendShader.use();
+    bloomBlendShader.setInt("scene", 0);
+    bloomBlendShader.setInt("bloomBlur", 1);
 
     depthMapShader.addGeomShader((shaderPath + "depth_map/depth_map.geom").c_str());
 
@@ -171,14 +200,24 @@ int main(int argc, char* argv[])
     glGenFramebuffers(1, &FBO);
     glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 
-    unsigned int screenTexture;
-    glGenTextures(1, &screenTexture);
-    glBindTexture(GL_TEXTURE_2D, screenTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    unsigned int colorBuffers[2];
+    glGenTextures(2, colorBuffers);
+    for (unsigned int i = 0; i < 2; i++) {
+        glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
+        glTexImage2D(
+                GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL
+                );
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // attach texture to framebuffer
+        glFramebufferTexture2D(
+                GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0
+                );
+    }
+    unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
 
     unsigned int rbo;
     glGenRenderbuffers(1, &rbo);
@@ -189,6 +228,27 @@ int main(int argc, char* argv[])
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
+    }
+    
+    unsigned int pingpongFBO[2];
+    unsigned int pingpongBuffer[2];
+    glGenFramebuffers(2, pingpongFBO);
+    glGenTextures(2, pingpongBuffer);
+
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+        glBindTexture(GL_TEXTURE_2D, pingpongBuffer[i]);
+        glTexImage2D(
+                GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL
+                );
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(
+                GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongBuffer[i], 0
+                );
     }
 
     // uniform buffer block
@@ -214,11 +274,11 @@ int main(int argc, char* argv[])
 
     std::string texPath = buildPath + "resources/textures/";
 
-    planeTexture = loadTexture((texPath + "bricks2.jpg").c_str(), true);
+    planeTexture = loadTexture((texPath + "brickwall.jpg").c_str(), true);
     planeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str(), false);
     planeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str(), false);
 
-    cubeTexture = loadTexture((texPath + "bricks2.jpg").c_str(), true);
+    cubeTexture = loadTexture((texPath + "container2.png").c_str(), true);
     cubeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str(), false);
     cubeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str(), false);
 
@@ -246,8 +306,46 @@ int main(int argc, char* argv[])
         glBindFramebuffer(GL_FRAMEBUFFER, FBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        renderScene(blinnphongShader, shadowTheHedgehog); 
-        renderFrameBufferToScreen(screenTexture, hdrScreenShader);
+        renderScene(bloomShader, shadowTheHedgehog); 
+        lightBoxShader.use();
+        lightBoxShader.setVec3("viewPos", camera.pos);
+
+        for (unsigned int i = 0; i < lightPositions.size(); i++) {
+
+            glm::mat4 model(1.0f);
+            model = glm::translate(model, lightPositions[i]);
+            model = glm::scale(model, glm::vec3(0.25f));
+
+            lightBoxShader.setMat4("model", model);
+            lightBoxShader.setVec3("lightColor", lightColors[i]);
+            glBindVertexArray(cubeVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        bool horizontal = true, first_iteration = true;
+        unsigned int amount = 10;
+        gaussBlurShader.use();
+        for (unsigned int i = 0; i < amount; i++) {
+
+            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]); 
+            gaussBlurShader.setInt("horizontal", horizontal);
+            glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongBuffer[!horizontal]);
+
+            glBindVertexArray(quadVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+
+            horizontal = !horizontal;
+            if (first_iteration)
+                first_iteration = false;
+        }
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!horizontal]);
+
+        renderFrameBufferToScreen(colorBuffers[0], bloomBlendShader);
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
@@ -262,76 +360,74 @@ int main(int argc, char* argv[])
 
 void renderScene(Shader shader, Model shadowTheHedgehog) {
 
-    glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glm::mat4 model = glm::mat4(1.0f);
-
-    // planes
-    glm::vec3 planeTranslations[6] = {
-        glm::vec3( 5.0f, 5.0f,  0.0f),
-        glm::vec3(-5.0f, 5.0f,  0.0f),
-        glm::vec3( 0.0f, 10.0f, 0.0f),
-        glm::vec3( 0.0f, 0.0f,  0.0f),
-        glm::vec3( 0.0f, 5.0f, -5.0f),
-        glm::vec3( 0.0f, 5.0f,  5.0f)
-    };
-
-    float planeRotationAngles[6] = { 90.0f, 90.0f, 180.0f, 0.0f, 90.0f, 90.0f };
-    glm::vec3 planeRotationAxes[6] = {
-        glm::vec3( 0.0f, 0.0f,  1.0f),
-        glm::vec3( 0.0f, 0.0f, -1.0f),
-        glm::vec3( 1.0f, 0.0f,  0.0f),
-        glm::vec3( 1.0f, 0.0f,  0.0f),
-        glm::vec3( 1.0f, 0.0f,  0.0f),
-        glm::vec3(-1.0f, 0.0f,  0.0f)
-    };
 
     glBindVertexArray(planeVAO);
     glBindTexture(GL_TEXTURE_2D, planeTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, planeNormalTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, planeDispTexture);
+
+    glm::mat4 model = glm::mat4(1.0f);
 
     shader.use();
     shader.setVec3("viewPos", camera.pos);
+    shader.setInt("diffuseMap", 0);
 
-    for (int i = 0; i < 6; i++) {
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, planeTranslations[i]);
-        model = glm::rotate(model, glm::radians(planeRotationAngles[i]), planeRotationAxes[i]);
-        model = glm::scale(model, glm::vec3(10.0f));
-        shader.setMat4("model", model);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
+    // create one large cube that acts as the floor
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(0.0f, -1.0f, 0.0));
+    model = glm::scale(model, glm::vec3(12.5f, 0.5f, 12.5f));
+    shader.setMat4("model", model);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    // cubes
     glBindVertexArray(cubeVAO);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, cubeTexture);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, cubeNormalTexture);
 
+    // then create multiple cubes as the scenery
     model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(3.0f, 0.5f, 0.0f));
-    shader.setMat4("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 2.5f, 0.0f));
+    model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
     model = glm::scale(model, glm::vec3(0.5f));
     shader.setMat4("model", model);
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
-    // render obj models
     model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(2.0f, 0.0f, 1.0));
+    model = glm::scale(model, glm::vec3(0.5f));
+    shader.setMat4("model", model);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-1.0f, -1.0f, 2.0));
+    model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+    shader.setMat4("model", model);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(0.0f, 2.7f, 4.0));
+    model = glm::rotate(model, glm::radians(23.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+    model = glm::scale(model, glm::vec3(1.25));
+    shader.setMat4("model", model);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-2.0f, 1.0f, -3.0));
+    model = glm::rotate(model, glm::radians(124.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+    shader.setMat4("model", model);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, glm::vec3(-3.0f, 0.0f, 0.0));
+    model = glm::scale(model, glm::vec3(0.5f));
+    shader.setMat4("model", model);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // render obj model
+    model = glm::mat4(1.0f);
+    model = translate(model, glm::vec3(1.0f, -1.0f, -1.0f));
     model = glm::scale(model, glm::vec3(0.05f));
     model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     shader.setMat4("model", model);
     shadowTheHedgehog.Draw(shader);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
