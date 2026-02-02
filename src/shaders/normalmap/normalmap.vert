@@ -16,6 +16,7 @@ out VS_OUT {
     vec3 TangentLightPos;
     vec3 TangentViewPos;
     vec3 TangentFragPos;
+    vec3 color;
 } vs_out;
 
 uniform mat4 model;
@@ -32,6 +33,9 @@ void main()
     vec3 N = normalize(normalMatrix * aNormal);
     T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
+    
+    vs_out.color = T * 0.5f + 0.5f;
+    vs_out.color = aTangent * 0.5f + 0.5f;
 
     mat3 TBN = transpose(mat3(T, B, N));
     vs_out.TangentLightPos = TBN * lightPos;
