@@ -25,14 +25,13 @@ unsigned int loadTexture(char const * path);
 unsigned int loadCubemap(std::vector<std::string> faces);
 
 // custom rendering functions
-void renderScene(Shader shader, unsigned int planeVAO, unsigned int cubeVAO, 
-        unsigned int planeTexture, unsigned int planeNormalTexture,
-        unsigned int cubeTexture, Model shadowTheHedgehog); 
+void renderScene(Shader shader, Model shadowTheHedgehog); 
 void renderFrameBufferToScreen(unsigned int multisampleFBO, unsigned int screenFBO,
         unsigned int screenTexture, Shader screenQuadShader, unsigned int quadVAO);  
 
 // custom silly functions
 std::string getBuildPath(std::string command);
+void getTangents(const unsigned int rowSize, const unsigned int triangleCount, float* vertices, float* tangents);
 void getAsteroidTranslations(glm::mat4 asteroidTranslations[ASTEROID_AMOUNT]);
 
 // timekeeping
@@ -43,6 +42,16 @@ float lastFrame = 0.0f; // time from start to last frame being rendered
 const glm::vec3 initCameraPos   = glm::vec3(0.0f,  3.0f,  4.0f);
 const glm::vec3 initCameraFront = glm::vec3(0.0f, -0.5f, -1.0f);
 const glm::vec3 initCameraUp    = glm::vec3(0.0f,  1.0f,  0.0f);
+
+// object VAOs
+unsigned int planeVAO, planeVBO;
+unsigned int planeTangentsVBO;
+unsigned int cubeVAO, cubeVBO;
+unsigned int cubeTangentsVBO;
+unsigned int cubeTexture;
+unsigned int cubeNormalTexture;
+unsigned int planeTexture;
+unsigned int planeNormalTexture;
 
 Camera camera(initCameraPos, initCameraFront, initCameraUp, WIDTH, HEIGHT);
 
@@ -94,11 +103,11 @@ int main(int argc, char* argv[])
     std::string shaderPath = buildPath + "shaders/";
 
     // back to boring setup stuff now
-    Shader shader((shaderPath + "shader/shader.vert").c_str(), (shaderPath + "shader/shader.frag").c_str());
-    Shader modelShader((shaderPath + "model/model.vert").c_str(), (shaderPath + "model/model.frag").c_str());
-    Shader screenQuadShader((shaderPath + "quad/quad.vert").c_str(), (shaderPath + "quad/quad.frag").c_str());
-    Shader depthMapShader((shaderPath + "depth_map/depth_map.vert").c_str(), 
-            (shaderPath + "depth_map/depth_map.frag").c_str());
+    Shader normalMapShader(buildPath, "normalmap");
+    Shader modelShader(buildPath, "model");
+    Shader screenQuadShader(buildPath, "screenquad");
+    Shader depthMapShader(buildPath, "depthmap");
+    Shader blinnphongShader(buildPath, "blinnphong");
 
     std::string objDirPath = buildPath + "resources/objects/";
     std::string backpackPath = "backpack/backpack.obj";
@@ -148,68 +157,9 @@ int main(int argc, char* argv[])
          1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.0f,
         -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 2.0f,
     };
-    
-    int rowSize = 8;
 
-    float planeTangents[6 * 6];
-
-    for (int i = 0; i < 2; i++) {
-
-        int texOffset = 6;
-
-        glm::vec3 tangent;
-        glm::vec3 bitangent;
-
-        glm::vec3 pos[3];
-        glm::vec2 tex[3];
-
-        float* firstCoord = &planeVertices[i * rowSize * 3];
-
-        for (int j = 0; j < 3; j++) {
-
-            pos[j] = glm::vec3(*(firstCoord), *(firstCoord + 1), *(firstCoord + 2));
-            tex[j] = glm::vec2(*(firstCoord + texOffset), *(firstCoord + texOffset + 1));
-            firstCoord += rowSize;
-        }
-
-        glm::vec3 edge1 = pos[1] - pos[0];
-        glm::vec3 edge2 = pos[2] - pos[0];
-        glm::vec2 deltaUV1 = tex[1] - tex[0];
-        glm::vec2 deltaUV2 = tex[2] - tex[0];
-
-        float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-
-        tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-        tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-        tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-
-        bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-        bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-        bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-
-        for(int j = 0; j < 3; j++) {
-
-            planeTangents[i * 18 + j * 6 + 0] = tangent.x;
-            planeTangents[i * 18 + j * 6 + 1] = tangent.y;
-            planeTangents[i * 18 + j * 6 + 2] = tangent.z;
-
-            planeTangents[i * 18 + j * 6 + 3] = bitangent.x;
-            planeTangents[i * 18 + j * 6 + 4] = bitangent.y;
-            planeTangents[i * 18 + j * 6 + 5] = bitangent.z;
-        }
-
-        std::cout << f << '\n';
-        std::cout << "[" << tangent.x << ", " << tangent.y << ", " << tangent.z << "]\n";
-        std::cout << f << '\n';
-        std::cout << "[" << bitangent.x << ", " << bitangent.y << ", " << bitangent.z << "]\n";
-    }
-
-    for (int i = 0; i < 6; i++) {
-        for (int j = 0; j < 6; j++) {
-            std::cout << planeTangents[i * 6 + j] << ' ';
-        }
-        std::cout << '\n';
-    }
+    float planeTangents[6 * 3];
+    getTangents(8, 2, planeVertices, planeTangents);
 
     float cubeVertices[] = {
         // positions         //normals   //texture coords
@@ -255,6 +205,9 @@ int main(int argc, char* argv[])
         -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
          0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f
     };
+
+    float cubeTangents[36 * 3];
+    getTangents(8, 12, cubeVertices, cubeTangents);
 
     // -------------- //
     // BUFFER OBJECTS //
@@ -346,7 +299,6 @@ int main(int argc, char* argv[])
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // for the floor
-    unsigned int planeVAO, planeVBO;
     glGenVertexArrays(1, &planeVAO);
     glGenBuffers(1, &planeVBO);
     glBindVertexArray(planeVAO);
@@ -359,19 +311,15 @@ int main(int argc, char* argv[])
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
-    unsigned int planeTangentsVBO;
     glGenBuffers(1, &planeTangentsVBO);
     glBindBuffer(GL_ARRAY_BUFFER, planeTangentsVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(planeTangents), &planeTangents, GL_STATIC_DRAW);
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(0 * sizeof(float)));
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * sizeof(float)));
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // cube
-    unsigned int cubeVAO, cubeVBO;
     glGenVertexArrays(1, &cubeVAO);
     glGenBuffers(1, &cubeVBO);
     glBindVertexArray(cubeVAO);
@@ -386,6 +334,14 @@ int main(int argc, char* argv[])
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+    glGenBuffers(1, &cubeTangentsVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeTangentsVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeTangents), &cubeTangents, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * sizeof(float)));
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     // uniform buffer block
     unsigned int cameraMatrixBlock;
     glGenBuffers(1, &cameraMatrixBlock);
@@ -394,15 +350,6 @@ int main(int argc, char* argv[])
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, cameraMatrixBlock);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    // ------------- //
-    // Load Textures //
-    // ------------- //
-
-    std::string texPath = buildPath + "resources/textures/";
-    unsigned int cubeTexture = loadTexture((texPath + "brickwall.jpg").c_str());
-    unsigned int cubeNormalTexture = loadTexture((texPath + "brickwall_normal.jpg").c_str());
-    unsigned int planeTexture = loadTexture((texPath + "brickwall.jpg").c_str());
-    unsigned int planeNormalTexture = loadTexture((texPath + "brickwall_normal.jpg").c_str());
 
     // load the camera projection matrix into the uniform buffer object memory
     glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
@@ -413,11 +360,23 @@ int main(int argc, char* argv[])
 
     glfwSwapInterval(0);
 
+
+    // ------------- //
+    // Load Textures //
+    // ------------- //
+
+    std::string texPath = buildPath + "resources/textures/";
+    cubeTexture = loadTexture((texPath + "brickwall.jpg").c_str());
+    cubeNormalTexture = loadTexture((texPath + "brickwall_normal.jpg").c_str());
+    planeTexture = loadTexture((texPath + "brickwall.jpg").c_str());
+    planeNormalTexture = loadTexture((texPath + "brickwall_normal.jpg").c_str());
+    cubeNormalTexture = loadTexture((texPath + "brickwall_normal.jpg").c_str());
+
     // weird shadow shit //
     float aspect = (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT;
     float near_plane = 1.0f, far_plane = 25.0f;
     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, near_plane, far_plane);
-    glm::vec3 lightPos = glm::vec3(0.0f, 2.5f, 0.0f);
+    glm::vec3 lightPos = glm::vec3(0.0f, 5.0f, 0.0f);
     std::vector<glm::mat4> shadowTransforms;
     shadowTransforms.push_back(shadowProj * 
             glm::lookAt(lightPos, lightPos + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
@@ -470,8 +429,7 @@ int main(int argc, char* argv[])
             depthMapShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
         }
     
-        renderScene(depthMapShader, planeVAO, cubeVAO, planeTexture, 
-                planeNormalTexture, cubeTexture, shadowTheHedgehog); 
+        renderScene(depthMapShader, shadowTheHedgehog); 
 
         // Actual Rendering //
         glViewport(0, 0, WIDTH, HEIGHT);
@@ -482,16 +440,15 @@ int main(int argc, char* argv[])
 
         glActiveTexture(GL_TEXTURE0);
 
-        shader.use();
-        shader.setInt("diffuseMap", 0);
-        shader.setInt("normalMap", 1);
-        shader.setInt("depthMap", 2);
-        shader.setFloat("far_plane", far_plane);
-        shader.setVec3("lightPos", lightPos);
-        shader.setVec3("viewPos", camera.pos);
+        normalMapShader.use();
+        normalMapShader.setInt("diffuseMap", 0);
+        normalMapShader.setInt("normalMap", 1);
+        normalMapShader.setInt("depthMap", 2);
+        normalMapShader.setFloat("far_plane", far_plane);
+        normalMapShader.setVec3("lightPos", lightPos);
+        normalMapShader.setVec3("viewPos", camera.pos);
 
-        renderScene(shader, planeVAO, cubeVAO, planeTexture, planeNormalTexture,
-                cubeTexture, shadowTheHedgehog); 
+        renderScene(normalMapShader, shadowTheHedgehog); 
 
         renderFrameBufferToScreen(multisampleFBO, screenFBO, screenTexture,
                 screenQuadShader, quadVAO);
@@ -507,9 +464,49 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-void renderScene(Shader shader, unsigned int planeVAO, unsigned int cubeVAO, 
-        unsigned int planeTexture, unsigned int planeNormalTexture,
-        unsigned int cubeTexture, Model shadowTheHedgehog) {
+void getTangents(const unsigned int rowSize,
+        const unsigned int triangleCount, float* vertices, float* tangents) {
+
+    for (unsigned int i = 0; i < triangleCount; i++) {
+
+        int texOffset = 6;
+
+        glm::vec3 tangent;
+
+        glm::vec3 pos[3];
+        glm::vec2 tex[3];
+
+        float* firstCoord = &vertices[i * rowSize * 3];
+
+        for (int j = 0; j < 3; j++) {
+
+            pos[j] = glm::vec3(*(firstCoord), *(firstCoord + 1), *(firstCoord + 2));
+            tex[j] = glm::vec2(*(firstCoord + texOffset), *(firstCoord + texOffset + 1));
+            firstCoord += rowSize;
+        }
+
+        glm::vec3 edge1 = pos[1] - pos[0];
+        glm::vec3 edge2 = pos[2] - pos[0];
+        glm::vec2 deltaUV1 = tex[1] - tex[0];
+        glm::vec2 deltaUV2 = tex[2] - tex[0];
+
+        float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+        tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+        tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+        tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+        // tangents for one triangle
+        for (int j = 0; j < 3; j++) {
+
+            tangents[i * 9 + j * 3 + 0] = tangent.x;
+            tangents[i * 9 + j * 3 + 1] = tangent.y;
+            tangents[i * 9 + j * 3 + 2] = tangent.z;
+        }
+    }
+}
+
+void renderScene(Shader shader, Model shadowTheHedgehog) {
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -542,7 +539,6 @@ void renderScene(Shader shader, unsigned int planeVAO, unsigned int cubeVAO,
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, planeNormalTexture);
 
-
     for (int i = 0; i < 6; i++) {
         model = glm::mat4(1.0f);
         model = glm::translate(model, planeTranslations[i]);
@@ -557,7 +553,7 @@ void renderScene(Shader shader, unsigned int planeVAO, unsigned int cubeVAO,
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, cubeTexture);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, planeNormalTexture);
+    glBindTexture(GL_TEXTURE_2D, cubeNormalTexture);
 
     model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(3.0f, 0.5f, 0.0f));
@@ -565,7 +561,7 @@ void renderScene(Shader shader, unsigned int planeVAO, unsigned int cubeVAO,
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
     model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 2.5f, 0.0f));
+    model = glm::translate(model, glm::vec3(0.0f, 5.0f, 0.0f));
     model = glm::scale(model, glm::vec3(0.5f));
     shader.setMat4("model", model);
     glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -631,10 +627,10 @@ unsigned int loadTexture(char const * path) {
         if (nrChannels == 1) {
             internalFormat = dataFormat = GL_RED;
         } else if (nrChannels == 3) {
-            internalFormat = GL_SRGB;
+            internalFormat = GL_RGB;
             dataFormat = GL_RGB;
         } else if (nrChannels == 4) {
-            internalFormat = GL_SRGB_ALPHA;
+            internalFormat = GL_RGBA;
             dataFormat = GL_RGBA;
         }
 
@@ -671,7 +667,7 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
 
         if (data) {
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                    0, GL_SRGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+                    0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
         } else {
             std::cout << "Cubemap texture failed to load at path: " << faces[i] << '\n';
         }

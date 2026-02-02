@@ -53,7 +53,4 @@ void main() {
     }
     
     FragColor = texture(tex, TexCoords);
-
-    float gamma = 2.2f;
-    FragColor.rgb = pow(FragColor.rgb, vec3(1.0f/gamma));
 }

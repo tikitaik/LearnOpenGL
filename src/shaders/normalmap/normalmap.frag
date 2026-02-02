@@ -17,14 +17,14 @@ uniform samplerCube depthMap;
 uniform float far_plane;
 
 vec3 BlinnPhong();
-float ShadowCalculation(vec3 fragPos);
+float ShadowCalculation();
 vec4 MandelbrotSet(vec4 fragCoord);
 
 void main() {
     FragColor = vec4(BlinnPhong(), 1.0f);
 }
 
-float ShadowCalculation(vec3 fragPos) {
+float ShadowCalculation() {
 
     vec3 fragToLight = fs_in.TangentFragPos - fs_in.TangentLightPos;
     float closestDepth = texture(depthMap, fragToLight).r;
@@ -83,8 +83,9 @@ vec3 BlinnPhong() {
     // calculate shadow
     float bias = max(0.05f * (1.0f - dot(normal, lightDir)), 0.005f);
     //float shadow = ShadowCalculation(fs_in.FragPos);
-    float shadow = 0;
-    vec3 lighting = ambient + diffuse + specular;
+    float shadow = 0.0f;
+
+    vec3 lighting = (ambient + (1.0f - shadow) * (diffuse + specular));
     return lighting;
 }
 
