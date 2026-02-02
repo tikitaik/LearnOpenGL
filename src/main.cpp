@@ -30,8 +30,9 @@ void renderFrameBufferToScreen(unsigned int multisampleFBO, unsigned int screenF
         unsigned int screenTexture, Shader screenQuadShader, unsigned int quadVAO);  
 
 // custom silly functions
-std::string getBuildPath(std::string command);
+void getVAOS();
 void getTangents(const unsigned int rowSize, const unsigned int triangleCount, float* vertices, float* tangents);
+std::string getBuildPath(std::string command);
 void getAsteroidTranslations(glm::mat4 asteroidTranslations[ASTEROID_AMOUNT]);
 
 // timekeeping
@@ -44,14 +45,11 @@ const glm::vec3 initCameraFront = glm::vec3(0.0f, -0.5f, -1.0f);
 const glm::vec3 initCameraUp    = glm::vec3(0.0f,  1.0f,  0.0f);
 
 // object VAOs
-unsigned int planeVAO, planeVBO;
-unsigned int planeTangentsVBO;
-unsigned int cubeVAO, cubeVBO;
-unsigned int cubeTangentsVBO;
-unsigned int cubeTexture;
-unsigned int cubeNormalTexture;
-unsigned int planeTexture;
-unsigned int planeNormalTexture;
+unsigned int quadVAO, quadVBO;
+unsigned int planeVAO, planeVBO, planeTangentsVBO;
+unsigned int cubeVAO, cubeVBO, cubeTangentsVBO;
+unsigned int cubeTexture, cubeNormalTexture;
+unsigned int planeTexture, planeNormalTexture;
 
 Camera camera(initCameraPos, initCameraFront, initCameraUp, WIDTH, HEIGHT);
 
@@ -99,7 +97,7 @@ int main(int argc, char* argv[])
     // ------------ //
     // Shader Setup //
     // ------------ //
-    std::string buildPath = getBuildPath(std::string (argv[0]));
+    std::string buildPath = getBuildPath(std::string(argv[0]));
     std::string shaderPath = buildPath + "shaders/";
 
     // back to boring setup stuff now
@@ -137,81 +135,11 @@ int main(int argc, char* argv[])
 
     depthMapShader.addGeomShader((shaderPath + "depth_map/depth_map.geom").c_str());
 
-    float quadVertices[] = {   // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-        // positions   // texCoords
-        -1.0f,  1.0f,  0.0f, 1.0f,
-        -1.0f, -1.0f,  0.0f, 0.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
-
-        -1.0f,  1.0f,  0.0f, 1.0f,
-         1.0f, -1.0f,  1.0f, 0.0f,
-         1.0f,  1.0f,  1.0f, 1.0f
-    };
-
-    float planeVertices[] = {
-        // positions           //normals         // textures
-        -1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-         1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f,
-         1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.0f,
-        -1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-         1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.0f,
-        -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 2.0f,
-    };
-
-    float planeTangents[6 * 3];
-    getTangents(8, 2, planeVertices, planeTangents);
-
-    float cubeVertices[] = {
-        // positions         //normals   //texture coords
-         0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-
-        -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-
-        -0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-
-         0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-         0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-
-        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-
-         0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-         0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-         0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f
-    };
-
-    float cubeTangents[36 * 3];
-    getTangents(8, 12, cubeVertices, cubeTangents);
-
     // -------------- //
     // BUFFER OBJECTS //
     // -------------- //
+
+    getVAOS();
 
     // frame buffer and attachments
     // use textures as buffer space
@@ -284,64 +212,6 @@ int main(int argc, char* argv[])
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
-    // screen quad
-    unsigned int quadVAO, quadVBO;
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    glBindVertexArray(quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    // for the floor
-    glGenVertexArrays(1, &planeVAO);
-    glGenBuffers(1, &planeVBO);
-    glBindVertexArray(planeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-
-    glGenBuffers(1, &planeTangentsVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, planeTangentsVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(planeTangents), &planeTangents, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * sizeof(float)));
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    // cube
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &cubeVBO);
-    glBindVertexArray(cubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    glGenBuffers(1, &cubeTangentsVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, cubeTangentsVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeTangents), &cubeTangents, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * sizeof(float)));
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
     // uniform buffer block
     unsigned int cameraMatrixBlock;
     glGenBuffers(1, &cameraMatrixBlock);
@@ -349,7 +219,6 @@ int main(int argc, char* argv[])
     glBufferData(GL_UNIFORM_BUFFER, 128, NULL, GL_STATIC_DRAW);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, cameraMatrixBlock);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
 
     // load the camera projection matrix into the uniform buffer object memory
     glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
@@ -464,47 +333,6 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-void getTangents(const unsigned int rowSize,
-        const unsigned int triangleCount, float* vertices, float* tangents) {
-
-    for (unsigned int i = 0; i < triangleCount; i++) {
-
-        int texOffset = 6;
-
-        glm::vec3 tangent;
-
-        glm::vec3 pos[3];
-        glm::vec2 tex[3];
-
-        float* firstCoord = &vertices[i * rowSize * 3];
-
-        for (int j = 0; j < 3; j++) {
-
-            pos[j] = glm::vec3(*(firstCoord), *(firstCoord + 1), *(firstCoord + 2));
-            tex[j] = glm::vec2(*(firstCoord + texOffset), *(firstCoord + texOffset + 1));
-            firstCoord += rowSize;
-        }
-
-        glm::vec3 edge1 = pos[1] - pos[0];
-        glm::vec3 edge2 = pos[2] - pos[0];
-        glm::vec2 deltaUV1 = tex[1] - tex[0];
-        glm::vec2 deltaUV2 = tex[2] - tex[0];
-
-        float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-
-        tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-        tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-        tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-
-        // tangents for one triangle
-        for (int j = 0; j < 3; j++) {
-
-            tangents[i * 9 + j * 3 + 0] = tangent.x;
-            tangents[i * 9 + j * 3 + 1] = tangent.y;
-            tangents[i * 9 + j * 3 + 2] = tangent.z;
-        }
-    }
-}
 
 void renderScene(Shader shader, Model shadowTheHedgehog) {
 
@@ -514,7 +342,6 @@ void renderScene(Shader shader, Model shadowTheHedgehog) {
     glm::mat4 model = glm::mat4(1.0f);
 
     // planes
-
     glm::vec3 planeTranslations[6] = {
         glm::vec3( 5.0f, 5.0f,  0.0f),
         glm::vec3(-5.0f, 5.0f,  0.0f),
@@ -561,7 +388,7 @@ void renderScene(Shader shader, Model shadowTheHedgehog) {
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
     model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 5.0f, 0.0f));
+    model = glm::translate(model, glm::vec3(0.0f, 2.5f, 0.0f));
     model = glm::scale(model, glm::vec3(0.5f));
     shader.setMat4("model", model);
     glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -703,6 +530,179 @@ void renderFrameBufferToScreen(unsigned int multisampleFBO, unsigned int screenF
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, screenTexture);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
+void getTangents(const unsigned int rowSize,
+        const unsigned int triangleCount, float* vertices, float* tangents) {
+
+    for (unsigned int i = 0; i < triangleCount; i++) {
+
+        int texOffset = 6;
+
+        glm::vec3 tangent;
+
+        glm::vec3 pos[3];
+        glm::vec2 tex[3];
+
+        float* firstCoord = &vertices[i * rowSize * 3];
+
+        for (int j = 0; j < 3; j++) {
+
+            pos[j] = glm::vec3(*(firstCoord), *(firstCoord + 1), *(firstCoord + 2));
+            tex[j] = glm::vec2(*(firstCoord + texOffset), *(firstCoord + texOffset + 1));
+            firstCoord += rowSize;
+        }
+
+        glm::vec3 edge1 = pos[1] - pos[0];
+        glm::vec3 edge2 = pos[2] - pos[0];
+        glm::vec2 deltaUV1 = tex[1] - tex[0];
+        glm::vec2 deltaUV2 = tex[2] - tex[0];
+
+        float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+        tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+        tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+        tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+        // tangents for one triangle
+        for (int j = 0; j < 3; j++) {
+
+            tangents[i * 9 + j * 3 + 0] = tangent.x;
+            tangents[i * 9 + j * 3 + 1] = tangent.y;
+            tangents[i * 9 + j * 3 + 2] = tangent.z;
+
+            //std::cout << "[" << tangent.x << ", " << tangent.y << ", " << tangent.z << "]\n";
+        }
+    }
+}
+
+void getVAOS() {
+
+    float quadVertices[] = {   // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+    };
+
+    float planeVertices[] = {
+        // positions           //normals         // textures
+        -1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+         1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f,
+         1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.0f,
+        -1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+         1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.0f,
+        -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 2.0f,
+    };
+
+    float cubeVertices[] = {
+        // positions         //normals   //texture coords
+         0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+
+         0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+         0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+
+         0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+         0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f
+    };
+
+    float planeTangents[6 * 3];
+    float cubeTangents[36 * 3];
+    getTangents(8, 2, planeVertices, planeTangents);
+    getTangents(8, 12, cubeVertices, cubeTangents);
+
+    // screen quad
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+     // for the floor
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+
+    glGenBuffers(1, &planeTangentsVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeTangentsVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeTangents), &planeTangents, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // cube
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &cubeVBO);
+    glBindVertexArray(cubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+
+    glGenBuffers(1, &cubeTangentsVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeTangentsVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeTangents), &cubeTangents, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 std::string getBuildPath(std::string argv_0) {
