@@ -12,8 +12,6 @@ in VS_OUT {
 
 uniform sampler2D diffuseMap;
 
-uniform float far_plane;
-
 vec3 BlinnPhong();
 
 void main() {
@@ -22,7 +20,7 @@ void main() {
 
 vec3 BlinnPhong() {
 
-    vec3 normal = fs_in.Normal;
+    vec3 normal = normalize(fs_in.Normal);
     vec3 color = texture(diffuseMap, fs_in.TexCoords).rgb;
 
     // ambient
@@ -38,9 +36,6 @@ vec3 BlinnPhong() {
     vec3 halfwayDir = normalize(lightDir + viewDir);
     float spec = pow(max(dot(normal, halfwayDir), 0.0f), 32.0f);
     vec3 specular = vec3(0.2f) * spec;
-
-    // calculate shadow
-    float bias = max(0.05f * (1.0f - dot(normal, lightDir)), 0.005f);
 
     vec3 lighting = ambient + diffuse + specular;
     return lighting;

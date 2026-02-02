@@ -52,5 +52,9 @@ void main() {
         //col += sampleTex[i] * edgeDetectionKernel[i];
     }
     
-    FragColor = texture(tex, TexCoords);
+    const float gamma = 2.2f;
+
+    vec3 color = texture(tex, TexCoords).rgb;
+    color = pow(color, vec3(1.0f / gamma));
+    FragColor = vec4(color, 1.0f);
 }
