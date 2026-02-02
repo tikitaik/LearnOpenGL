@@ -15,8 +15,11 @@ public:
     unsigned int ID;
 
     // constructor reads and builds the shader
-    Shader(const char* vertexPath, const char* fragmentPath)
+    Shader(const std::string buildPath, const std::string shaderName)
     {
+        const std::string vertexPath = buildPath + "shaders/" + shaderName + "/" + shaderName + ".vert";
+        const std::string fragmentPath = buildPath + "shaders/" + shaderName + "/" + shaderName + ".frag";
+
         // 1. retrieve the vertex/fragment source code from filePath
         std::string vertexCode;
         std::string fragmentCode;
@@ -28,8 +31,8 @@ public:
         try 
         {
             // open files
-            vShaderFile.open(vertexPath);
-            fShaderFile.open(fragmentPath);
+            vShaderFile.open(vertexPath.c_str());
+            fShaderFile.open(fragmentPath.c_str());
             std::stringstream vShaderStream, fShaderStream;
             // read file's buffer contents into streams
             vShaderStream << vShaderFile.rdbuf();
@@ -43,7 +46,8 @@ public:
         }
         catch(const std::ifstream::failure& e)
         {
-            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ:\n\t" << vertexPath << '\n';
+
         }
         const char* vShaderCode = vertexCode.c_str();
         const char* fShaderCode = fragmentCode.c_str();
