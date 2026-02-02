@@ -26,13 +26,44 @@ void main() {
     vec3 viewDir   = normalize(fs_in.TangentViewPos - fs_in.TangentFragPos);
     vec2 texCoords = ParallaxMapping(fs_in.TexCoords, viewDir);
 
+    if (texCoords.x > 1.0f || texCoords.y > 1.0f || texCoords.x < 0.0f || texCoords.y < 0.0f) {
+        discard;
+    }
+
     FragColor = vec4(BlinnPhong(texCoords), 1.0f);
 }
 
 vec2 ParallaxMapping(vec2 texCoords, vec3 viewDir) {
-    float height = texture(depthMap, texCoords).r;
-    vec2 p = viewDir.xy / viewDir.z * (height * height_scale);
-    return texCoords - p;
+
+    const float minLayers = 8;
+    const float maxLayers = 32;
+    float numLayers = mix(maxLayers, minLayers, max(dot(vec3(0.0f, 0.0f, 1.0f), viewDir), 0.0f));
+
+    float layerDepth = 1.0f / numLayers;
+    float currentLayerDepth = 0.0f;
+
+    vec2 P = viewDir.xy * height_scale;
+    vec2 deltaTexCoords = P / numLayers;
+
+    vec2 currentTexCoords = texCoords;
+    float currentDepthMapValue = texture(depthMap, currentTexCoords).r;
+
+    while (currentLayerDepth < currentDepthMapValue) {
+
+        currentTexCoords -= deltaTexCoords;
+        currentDepthMapValue = texture(depthMap, currentTexCoords).r;
+        currentLayerDepth += layerDepth;
+    }
+
+    vec2 prevTexCoords = currentTexCoords + deltaTexCoords;
+
+    float afterDepth = currentDepthMapValue - currentLayerDepth;
+    float beforeDepth = texture(depthMap, prevTexCoords).r - currentLayerDepth + layerDepth;
+
+    float weight = afterDepth / (afterDepth - beforeDepth);
+    vec2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0f - weight);
+
+    return finalTexCoords;
 }
 
 vec3 BlinnPhong(vec2 texCoords) {
