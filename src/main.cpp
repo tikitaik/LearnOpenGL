@@ -21,13 +21,13 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos); 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-unsigned int loadTexture(char const * path);
+unsigned int loadTexture(char const * path, bool isSRGB);
 unsigned int loadCubemap(std::vector<std::string> faces);
 
 // custom rendering functions
 void renderScene(Shader shader, Model shadowTheHedgehog); 
 void renderFrameBufferToScreen(unsigned int multisampleFBO, unsigned int screenFBO,
-        unsigned int screenTexture, Shader screenQuadShader, unsigned int quadVAO);  
+        unsigned int screenTexture, Shader screenQuadShader);  
 
 // custom silly functions
 void getVAOS();
@@ -101,7 +101,7 @@ int main(int argc, char* argv[])
     std::string shaderPath = buildPath + "shaders/";
 
     glm::vec3 lightPos = glm::vec3(0.0f, 5.0f, 0.0f);
-    float near_plane = 1.0f, far_plane = 25.0f;
+    float far_plane = 25.0f;
 
     // back to boring setup stuff now
     Shader blinnphongShader(buildPath, "blinnphong");
@@ -110,9 +110,13 @@ int main(int argc, char* argv[])
     Shader normalMapShader(buildPath, "normalmap");
     Shader parallaxShader(buildPath, "parallax");
     Shader screenQuadShader(buildPath, "screenquad");
+    Shader hdrScreenShader(buildPath, "hdr");
 
     // bruh ass uniforms
     depthMapShader.addGeomShader((shaderPath + "depth_map/depth_map.geom").c_str());
+
+    hdrScreenShader.use();
+    hdrScreenShader.setInt("tex", 0);
 
     modelShader.use();
     modelShader.addGeomShader((shaderPath + "model/model.geom").c_str());
@@ -170,7 +174,7 @@ int main(int argc, char* argv[])
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, screenTextureMultisample);
 
     // allocate memory to texture, so no actual texture in there just empty space to write to
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGB, WIDTH, HEIGHT, GL_TRUE);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA16F, WIDTH, HEIGHT, GL_TRUE);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, screenTextureMultisample, 0);
 
@@ -191,7 +195,7 @@ int main(int argc, char* argv[])
     unsigned int screenTexture;
     glGenTextures(1, &screenTexture);
     glBindTexture(GL_TEXTURE_2D, screenTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
@@ -205,30 +209,6 @@ int main(int argc, char* argv[])
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
     }
-
-    unsigned int depthMapFBO;
-    glGenFramebuffers(1, &depthMapFBO);
-
-    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
-
-    unsigned int depthCubeMap;
-    glGenTextures(1, &depthCubeMap);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMap);
-    for (int i = 0; i < 6; i++) {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 
-                SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); 
-    }
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubeMap, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
     // uniform buffer block
     unsigned int cameraMatrixBlock;
@@ -253,30 +233,13 @@ int main(int argc, char* argv[])
 
     std::string texPath = buildPath + "resources/textures/";
 
-    planeTexture = loadTexture((texPath + "bricks2.jpg").c_str());
-    planeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str());
-    planeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str());
+    planeTexture = loadTexture((texPath + "bricks2.jpg").c_str(), false);
+    planeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str(), false);
+    planeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str(), false);
 
-    cubeTexture = loadTexture((texPath + "bricks2.jpg").c_str());
-    cubeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str());
-    cubeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str());
-
-    // weird shadow shit //
-    float aspect = (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT;
-    glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, near_plane, far_plane);
-    std::vector<glm::mat4> shadowTransforms;
-    shadowTransforms.push_back(shadowProj * 
-            glm::lookAt(lightPos, lightPos + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
-    shadowTransforms.push_back(shadowProj * 
-            glm::lookAt(lightPos, lightPos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
-    shadowTransforms.push_back(shadowProj * 
-            glm::lookAt(lightPos, lightPos + glm::vec3( 0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
-    shadowTransforms.push_back(shadowProj * 
-            glm::lookAt(lightPos, lightPos + glm::vec3( 0.0,-1.0, 0.0), glm::vec3(0.0, 0.0,-1.0)));
-    shadowTransforms.push_back(shadowProj * 
-            glm::lookAt(lightPos, lightPos + glm::vec3( 0.0, 0.0, 1.0), glm::vec3(0.0,-1.0, 0.0)));
-    shadowTransforms.push_back(shadowProj * 
-            glm::lookAt(lightPos, lightPos + glm::vec3( 0.0, 0.0,-1.0), glm::vec3(0.0,-1.0, 0.0)));
+    cubeTexture = loadTexture((texPath + "bricks2.jpg").c_str(), false);
+    cubeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str(), false);
+    cubeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str(), false);
 
     // --------- //
     // Main Loop //
@@ -287,6 +250,8 @@ int main(int argc, char* argv[])
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        glm::mat4 view = camera.GetViewMatrix();
+
         processInput(window);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -294,9 +259,6 @@ int main(int argc, char* argv[])
         // rendering config here
         glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
-        // get camera matrices
-        glm::mat4 view = camera.GetViewMatrix();
 
         // load view matrix into memory
         glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
@@ -304,17 +266,10 @@ int main(int argc, char* argv[])
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         // Actual Rendering //
-        glViewport(0, 0, WIDTH, HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
 
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMap);
-
-        glActiveTexture(GL_TEXTURE0);
         renderScene(parallaxShader, shadowTheHedgehog); 
-
-        renderFrameBufferToScreen(multisampleFBO, screenFBO, screenTexture,
-                screenQuadShader, quadVAO);
+        renderFrameBufferToScreen(multisampleFBO, screenFBO, screenTexture, hdrScreenShader);
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
@@ -434,7 +389,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     camera.ProcessScroll(yoffset);
 }
 
-unsigned int loadTexture(char const * path) {
+unsigned int loadTexture(char const * path, bool isSRGB) {
     
     unsigned int textureID;
     glGenTextures(1, &textureID);
@@ -452,10 +407,10 @@ unsigned int loadTexture(char const * path) {
         if (nrChannels == 1) {
             internalFormat = dataFormat = GL_RED;
         } else if (nrChannels == 3) {
-            internalFormat = GL_RGB;
+            internalFormat = isSRGB ? GL_SRGB : GL_RGB;
             dataFormat = GL_RGB;
         } else if (nrChannels == 4) {
-            internalFormat = GL_RGBA;
+            internalFormat = isSRGB ? GL_SRGB_ALPHA : GL_RGBA;
             dataFormat = GL_RGBA;
         }
 
@@ -512,7 +467,7 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
 }
 
 void renderFrameBufferToScreen(unsigned int multisampleFBO, unsigned int screenFBO,
-        unsigned int screenTexture, Shader screenQuadShader, unsigned int quadVAO)  {
+        unsigned int screenTexture, Shader screenQuadShader)  {
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampleFBO);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFBO);
