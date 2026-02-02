@@ -329,7 +329,7 @@ int main(int argc, char* argv[])
 
 void renderScene(Shader shader, Model shadowTheHedgehog) {
 
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glm::mat4 model = glm::mat4(1.0f);
@@ -368,7 +368,7 @@ void renderScene(Shader shader, Model shadowTheHedgehog) {
         model = glm::mat4(1.0f);
         model = glm::translate(model, planeTranslations[i]);
         model = glm::rotate(model, glm::radians(planeRotationAngles[i]), planeRotationAxes[i]);
-        model = glm::scale(model, glm::vec3(5.0f));
+        model = glm::scale(model, glm::vec3(10.0f));
         shader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
@@ -589,16 +589,16 @@ void getVAOS() {
 
     float planeVertices[] = {
         // positions           //normals         // textures
-        -1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-         1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f,
-         1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.0f,
-        -1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-         1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.0f,
-        -1.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 2.0f,
+        -0.5f, 0.0f,  0.5f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f,
+         0.5f, 0.0f,  0.5f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f,
+         0.5f, 0.0f, -0.5f, 0.0f, 0.5f, 0.0f, 1.0f, 1.0f,
+        -0.5f, 0.0f,  0.5f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f,
+         0.5f, 0.0f, -0.5f, 0.0f, 0.5f, 0.0f, 1.0f, 1.0f,
+        -0.5f, 0.0f, -0.5f, 0.0f, 0.5f, 0.0f, 0.0f, 1.0f
     };
 
     float cubeVertices[] = {
-        // positions         //normals   //texture coords
+        // positions         //normals          //texture coords
          0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
          0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
         -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
