@@ -74,7 +74,7 @@ vec3 BlinnPhong(vec2 texCoords) {
     vec3 color = texture(diffuseMap, texCoords).rgb;
 
     // ambient
-    vec3 ambient = 0.15f * color;
+    vec3 ambient = 0.1f * color;
 
     // diffuse
     vec3 lightDir = normalize(fs_in.TangentLightPos - fs_in.TangentFragPos);

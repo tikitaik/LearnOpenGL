@@ -24,7 +24,7 @@ uniform vec3 viewPos;
 void main()
 {
     vs_out.FragPos = vec3(model * vec4(aPos, 1.0f));
-    vs_out.Normal = aNormal;
+    vs_out.Normal = mat3(model) * aNormal;
     vs_out.TexCoords = aTexCoords;
     vs_out.LightPos = lightPos;
     vs_out.ViewPos  = viewPos;

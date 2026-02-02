@@ -113,6 +113,11 @@ int main(int argc, char* argv[])
     Shader hdrScreenShader(buildPath, "hdr");
 
     // bruh ass uniforms
+
+    blinnphongShader.use();
+    blinnphongShader.setInt("diffuseMap", 0);
+    blinnphongShader.setVec3("lightPos", lightPos);
+
     depthMapShader.addGeomShader((shaderPath + "depth_map/depth_map.geom").c_str());
 
     hdrScreenShader.use();
@@ -233,17 +238,18 @@ int main(int argc, char* argv[])
 
     std::string texPath = buildPath + "resources/textures/";
 
-    planeTexture = loadTexture((texPath + "bricks2.jpg").c_str(), false);
+    planeTexture = loadTexture((texPath + "bricks2.jpg").c_str(), true);
     planeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str(), false);
     planeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str(), false);
 
-    cubeTexture = loadTexture((texPath + "bricks2.jpg").c_str(), false);
+    cubeTexture = loadTexture((texPath + "bricks2.jpg").c_str(), true);
     cubeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str(), false);
     cubeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str(), false);
 
     // --------- //
     // Main Loop //
     // --------- //
+    
     while (!glfwWindowShouldClose(window)) {
         
         float currentFrame = glfwGetTime();
@@ -268,7 +274,7 @@ int main(int argc, char* argv[])
         // Actual Rendering //
         glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
 
-        renderScene(parallaxShader, shadowTheHedgehog); 
+        renderScene(blinnphongShader, shadowTheHedgehog); 
         renderFrameBufferToScreen(multisampleFBO, screenFBO, screenTexture, hdrScreenShader);
 
         // check and call events and swap the buffers
@@ -543,17 +549,17 @@ void getVAOS() {
     };
 
     float planeVertices[] = {
-        // positions           //normals         // textures
-        -0.5f, 0.0f,  0.5f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f,
-         0.5f, 0.0f,  0.5f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f,
-         0.5f, 0.0f, -0.5f, 0.0f, 0.5f, 0.0f, 1.0f, 1.0f,
-        -0.5f, 0.0f,  0.5f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f,
-         0.5f, 0.0f, -0.5f, 0.0f, 0.5f, 0.0f, 1.0f, 1.0f,
-        -0.5f, 0.0f, -0.5f, 0.0f, 0.5f, 0.0f, 0.0f, 1.0f
+        // positions           // normals        // textures
+        -0.5f, 0.0f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+         0.5f, 0.0f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+         0.5f, 0.0f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f, 0.0f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+         0.5f, 0.0f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f, 0.0f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f
     };
 
     float cubeVertices[] = {
-        // positions         //normals          //texture coords
+         // positions        // normals         //texture coords
          0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
          0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
         -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
