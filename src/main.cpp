@@ -26,8 +26,7 @@ unsigned int loadCubemap(std::vector<std::string> faces);
 
 // custom rendering functions
 void renderScene(Shader shader, Model shadowTheHedgehog); 
-void renderFrameBufferToScreen(unsigned int multisampleFBO, unsigned int screenFBO,
-        unsigned int screenTexture, Shader screenQuadShader);  
+void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShader);
 
 // custom silly functions
 void getVAOS();
@@ -168,34 +167,9 @@ int main(int argc, char* argv[])
 
     getVAOS();
 
-    // frame buffer and attachments
-    // use textures as buffer space
-    unsigned int multisampleFBO;
-    glGenFramebuffers(1, &multisampleFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
-
-    unsigned int screenTextureMultisample;
-    glGenTextures(1, &screenTextureMultisample);
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, screenTextureMultisample);
-
-    // allocate memory to texture, so no actual texture in there just empty space to write to
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA16F, WIDTH, HEIGHT, GL_TRUE);
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, screenTextureMultisample, 0);
-
-    // fucking make sure you attack your render buffer object to the correct framebuffer
-    // lest you have it attached to the wrong frambuffer for depth testing and youre doing the most
-    // useless depth testing on one quad rather than when you are rendering bruh
-    unsigned int rbo;
-    glGenRenderbuffers(1, &rbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-
-    unsigned int screenFBO;
-    glGenFramebuffers(1, &screenFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
+    unsigned int FBO;
+    glGenFramebuffers(1, &FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 
     unsigned int screenTexture;
     glGenTextures(1, &screenTexture);
@@ -206,10 +180,12 @@ int main(int argc, char* argv[])
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // or we can use renderbuffer objects? you cant directly read from them
-    // you can use glReadPixels but it is slow
-    // renderbuffers are good for depth and stencil buffers because of the readonly
-    // renderbuffer good for when not sampling
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
@@ -260,22 +236,18 @@ int main(int argc, char* argv[])
 
         processInput(window);
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // rendering config here
-        glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         // load view matrix into memory
         glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
         glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, &view);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         // Actual Rendering //
-        glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         renderScene(blinnphongShader, shadowTheHedgehog); 
-        renderFrameBufferToScreen(multisampleFBO, screenFBO, screenTexture, hdrScreenShader);
+        renderFrameBufferToScreen(screenTexture, hdrScreenShader);
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
@@ -472,16 +444,9 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
     return textureID;
 }
 
-void renderFrameBufferToScreen(unsigned int multisampleFBO, unsigned int screenFBO,
-        unsigned int screenTexture, Shader screenQuadShader)  {
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampleFBO);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFBO);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glBlitFramebuffer(0, 0, WIDTH, HEIGHT, 0, 0, WIDTH, HEIGHT, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShader)  {
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         screenQuadShader.use();
