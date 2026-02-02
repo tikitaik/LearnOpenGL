@@ -48,8 +48,8 @@ const glm::vec3 initCameraUp    = glm::vec3(0.0f,  1.0f,  0.0f);
 unsigned int quadVAO, quadVBO;
 unsigned int planeVAO, planeVBO, planeTangentsVBO;
 unsigned int cubeVAO, cubeVBO, cubeTangentsVBO;
-unsigned int cubeTexture, cubeNormalTexture;
-unsigned int planeTexture, planeNormalTexture;
+unsigned int planeTexture, planeNormalTexture, planeDispTexture;
+unsigned int cubeTexture, cubeNormalTexture, cubeDispTexture;
 
 Camera camera(initCameraPos, initCameraFront, initCameraUp, WIDTH, HEIGHT);
 
@@ -100,12 +100,45 @@ int main(int argc, char* argv[])
     std::string buildPath = getBuildPath(std::string(argv[0]));
     std::string shaderPath = buildPath + "shaders/";
 
+    glm::vec3 lightPos = glm::vec3(0.0f, 5.0f, 0.0f);
+    float near_plane = 1.0f, far_plane = 25.0f;
+
     // back to boring setup stuff now
-    Shader normalMapShader(buildPath, "normalmap");
-    Shader modelShader(buildPath, "model");
-    Shader screenQuadShader(buildPath, "screenquad");
-    Shader depthMapShader(buildPath, "depthmap");
     Shader blinnphongShader(buildPath, "blinnphong");
+    Shader depthMapShader(buildPath, "depthmap");
+    Shader modelShader(buildPath, "model");
+    Shader normalMapShader(buildPath, "normalmap");
+    Shader parallaxShader(buildPath, "parallax");
+    Shader screenQuadShader(buildPath, "screenquad");
+
+    // bruh ass uniforms
+    depthMapShader.addGeomShader((shaderPath + "depth_map/depth_map.geom").c_str());
+
+    modelShader.use();
+    modelShader.addGeomShader((shaderPath + "model/model.geom").c_str());
+    modelShader.setInt("material.diffuse", 0);
+    modelShader.setInt("material.specular", 0);
+    modelShader.setFloat("material.shininess", 200.0f);
+    modelShader.setInt("ourTex", 0);
+
+    modelShader.setVec3("dirLight.direction", glm::vec3(1.0f, -1.0f, -1.0f));
+    modelShader.setVec3("dirLight.ambient", glm::vec3(0.01f, 0.01f, 0.01f));
+    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.1f, 0.1f, 0.1f));
+    modelShader.setVec3("dirLight.specular", glm::vec3(0.9f, 0.9f, 0.9f));
+
+    normalMapShader.use();
+    normalMapShader.setVec3("lightPos", lightPos);
+    normalMapShader.setInt("diffuseMap", 0);
+    normalMapShader.setInt("normalMap", 1);
+    normalMapShader.setInt("depthMap", 2);
+    normalMapShader.setFloat("far_plane", far_plane);
+
+    parallaxShader.use();
+    parallaxShader.setVec3("lightPos", lightPos);
+    parallaxShader.setInt("diffuseMap", 0);
+    parallaxShader.setInt("normalMap", 1);
+    parallaxShader.setInt("depthMap", 2);
+    parallaxShader.setFloat("height_scale", 0.1f);
 
     std::string objDirPath = buildPath + "resources/objects/";
     std::string backpackPath = "backpack/backpack.obj";
@@ -119,21 +152,6 @@ int main(int argc, char* argv[])
 
     Model backpack(objDirPath + backpackPath);
     Model shadowTheHedgehog(objDirPath + shadowHedgehogPath);
-
-    // obj model uniforms fuck me
-    modelShader.use();
-    modelShader.addGeomShader((shaderPath + "model/model.geom").c_str());
-    modelShader.setInt("material.diffuse", 0);
-    modelShader.setInt("material.specular", 0);
-    modelShader.setFloat("material.shininess", 200.0f);
-    modelShader.setInt("ourTex", 0);
-
-    modelShader.setVec3("dirLight.direction", glm::vec3(1.0f, -1.0f, -1.0f));
-    modelShader.setVec3("dirLight.ambient", glm::vec3(0.01f, 0.01f, 0.01f));
-    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.1f, 0.1f, 0.1f));
-    modelShader.setVec3("dirLight.specular", glm::vec3(0.9f, 0.9f, 0.9f));
-
-    depthMapShader.addGeomShader((shaderPath + "depth_map/depth_map.geom").c_str());
 
     // -------------- //
     // BUFFER OBJECTS //
@@ -229,23 +247,23 @@ int main(int argc, char* argv[])
 
     glfwSwapInterval(0);
 
-
     // ------------- //
     // Load Textures //
     // ------------- //
 
     std::string texPath = buildPath + "resources/textures/";
-    cubeTexture = loadTexture((texPath + "brickwall.jpg").c_str());
-    cubeNormalTexture = loadTexture((texPath + "brickwall_normal.jpg").c_str());
-    planeTexture = loadTexture((texPath + "brickwall.jpg").c_str());
-    planeNormalTexture = loadTexture((texPath + "brickwall_normal.jpg").c_str());
-    cubeNormalTexture = loadTexture((texPath + "brickwall_normal.jpg").c_str());
+
+    planeTexture = loadTexture((texPath + "bricks2.jpg").c_str());
+    planeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str());
+    planeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str());
+
+    cubeTexture = loadTexture((texPath + "bricks2.jpg").c_str());
+    cubeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str());
+    cubeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str());
 
     // weird shadow shit //
     float aspect = (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT;
-    float near_plane = 1.0f, far_plane = 25.0f;
     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, near_plane, far_plane);
-    glm::vec3 lightPos = glm::vec3(0.0f, 5.0f, 0.0f);
     std::vector<glm::mat4> shadowTransforms;
     shadowTransforms.push_back(shadowProj * 
             glm::lookAt(lightPos, lightPos + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
@@ -285,21 +303,6 @@ int main(int argc, char* argv[])
         glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, &view);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-        // Actual stuff happens here //
-
-        // DEPTH MAP //
-        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-
-        depthMapShader.use();
-        depthMapShader.setVec3("lightPos", lightPos);
-        depthMapShader.setFloat("far_plane", far_plane);
-        for (unsigned int i = 0; i < 6; i++) {
-            depthMapShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
-        }
-    
-        renderScene(depthMapShader, shadowTheHedgehog); 
-
         // Actual Rendering //
         glViewport(0, 0, WIDTH, HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, multisampleFBO);
@@ -308,16 +311,7 @@ int main(int argc, char* argv[])
         glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubeMap);
 
         glActiveTexture(GL_TEXTURE0);
-
-        normalMapShader.use();
-        normalMapShader.setInt("diffuseMap", 0);
-        normalMapShader.setInt("normalMap", 1);
-        normalMapShader.setInt("depthMap", 2);
-        normalMapShader.setFloat("far_plane", far_plane);
-        normalMapShader.setVec3("lightPos", lightPos);
-        normalMapShader.setVec3("viewPos", camera.pos);
-
-        renderScene(normalMapShader, shadowTheHedgehog); 
+        renderScene(parallaxShader, shadowTheHedgehog); 
 
         renderFrameBufferToScreen(multisampleFBO, screenFBO, screenTexture,
                 screenQuadShader, quadVAO);
@@ -332,7 +326,6 @@ int main(int argc, char* argv[])
     glfwTerminate();
     return 0;
 }
-
 
 void renderScene(Shader shader, Model shadowTheHedgehog) {
 
@@ -365,6 +358,11 @@ void renderScene(Shader shader, Model shadowTheHedgehog) {
     glBindTexture(GL_TEXTURE_2D, planeTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, planeNormalTexture);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, planeDispTexture);
+
+    shader.use();
+    shader.setVec3("viewPos", camera.pos);
 
     for (int i = 0; i < 6; i++) {
         model = glm::mat4(1.0f);
