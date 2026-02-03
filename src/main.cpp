@@ -26,7 +26,7 @@ unsigned int loadCubemap(std::vector<std::string> faces);
 
 // custom rendering functions
 void renderScene(Shader shader, Model shadowTheHedgehog); 
-void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShader);
+void renderFrameBufferToScreen(Shader screenQuadShader);
 
 // custom silly functions
 void getVAOS();
@@ -50,6 +50,12 @@ unsigned int cubeVAO, cubeVBO, cubeTangentsVBO;
 unsigned int planeTexture, planeNormalTexture, planeDispTexture;
 unsigned int cubeTexture, cubeNormalTexture, cubeDispTexture;
 
+unsigned int screenFBO;
+unsigned int screenTexture;
+unsigned int screenRBO;
+
+unsigned int cameraMatrixBlock;
+
 Camera camera(initCameraPos, initCameraFront, initCameraUp, WIDTH, HEIGHT);
 
 int main(int argc, char* argv[])
@@ -58,7 +64,6 @@ int main(int argc, char* argv[])
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_SAMPLES, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // glfw window creation
@@ -90,7 +95,6 @@ int main(int argc, char* argv[])
     // Configure OpenGL State //
     // ---------------------- //
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_MULTISAMPLE);
     glEnable(GL_CULL_FACE);
 
     // ------------ //
@@ -100,18 +104,6 @@ int main(int argc, char* argv[])
     std::string shaderPath = buildPath + "shaders/";
 
     glm::vec3 lightPos(0.0f, 5.0f, 0.0f);
-    
-    std::vector<glm::vec3> lightPositions;
-    lightPositions.push_back(glm::vec3( 0.0f, 0.5f,  1.5f));
-    lightPositions.push_back(glm::vec3(-4.0f, 0.5f, -3.0f));
-    lightPositions.push_back(glm::vec3( 3.0f, 0.5f,  1.0f));
-    lightPositions.push_back(glm::vec3(-0.8f,  2.4f, -1.0f));
-    // colors
-    std::vector<glm::vec3> lightColors;
-    lightColors.push_back(glm::vec3(5.0f,   5.0f,  5.0f));
-    lightColors.push_back(glm::vec3(10.0f,  0.0f,  0.0f));
-    lightColors.push_back(glm::vec3(0.0f,   0.0f,  15.0f));
-    lightColors.push_back(glm::vec3(0.0f,   5.0f,  0.0f));
 
     float far_plane = 25.0f;
 
@@ -132,19 +124,6 @@ int main(int argc, char* argv[])
     blinnphongShader.use();
     blinnphongShader.setInt("diffuseMap", 0);
     blinnphongShader.setVec3("lightPos", lightPos);
-
-    bloomShader.use();
-    bloomShader.setInt("diffuseMap", 0);
-
-    for (unsigned int i = 0; i < lightPositions.size(); i++)
-    {
-        bloomShader.setVec3("lights[" + std::to_string(i) + "].Position", lightPositions[i]);
-        bloomShader.setVec3("lights[" + std::to_string(i) + "].Color", lightColors[i]);
-    }
-
-    bloomBlendShader.use();
-    bloomBlendShader.setInt("scene", 0);
-    bloomBlendShader.setInt("bloomBlur", 1);
 
     hdrScreenShader.use();
     hdrScreenShader.setInt("tex", 0);
@@ -193,76 +172,6 @@ int main(int argc, char* argv[])
 
     getVAOS();
 
-    unsigned int FBO;
-    glGenFramebuffers(1, &FBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-
-    unsigned int colorBuffers[2];
-    glGenTextures(2, colorBuffers);
-    for (unsigned int i = 0; i < 2; i++) {
-        glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
-        glTexImage2D(
-                GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL
-                );
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        // attach texture to framebuffer
-        glFramebufferTexture2D(
-                GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0
-                );
-    }
-    unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    glDrawBuffers(2, attachments);
-
-    unsigned int rbo;
-    glGenRenderbuffers(1, &rbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
-    }
-    
-    unsigned int pingpongFBO[2];
-    unsigned int pingpongBuffer[2];
-    glGenFramebuffers(2, pingpongFBO);
-    glGenTextures(2, pingpongBuffer);
-
-    for (unsigned int i = 0; i < 2; i++)
-    {
-        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
-        glBindTexture(GL_TEXTURE_2D, pingpongBuffer[i]);
-        glTexImage2D(
-                GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL
-                );
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glFramebufferTexture2D(
-                GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongBuffer[i], 0
-                );
-    }
-
-    // uniform buffer block
-    unsigned int cameraMatrixBlock;
-    glGenBuffers(1, &cameraMatrixBlock);
-    glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
-    glBufferData(GL_UNIFORM_BUFFER, 128, NULL, GL_STATIC_DRAW);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, cameraMatrixBlock);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-    // load the camera projection matrix into the uniform buffer object memory
-    glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
-            (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
-    glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, &projection);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
     glfwSwapInterval(0);
 
     // ------------- //
@@ -300,49 +209,16 @@ int main(int argc, char* argv[])
 
         // Actual Rendering //
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        renderScene(bloomShader, shadowTheHedgehog); 
-        lightBoxShader.use();
-        lightBoxShader.setVec3("viewPos", camera.pos);
+        blinnphongShader.use();
+        blinnphongShader.setVec3("viewPos", camera.pos);
+        blinnphongShader.setVec3("lightPos", glm::vec3(0.0f, 5.0f, 0.0f));
 
-        for (unsigned int i = 0; i < lightPositions.size(); i++) {
+        renderScene(blinnphongShader, shadowTheHedgehog); 
 
-            glm::mat4 model(1.0f);
-            model = glm::translate(model, lightPositions[i]);
-            model = glm::scale(model, glm::vec3(0.25f));
-
-            lightBoxShader.setMat4("model", model);
-            lightBoxShader.setVec3("lightColor", lightColors[i]);
-            glBindVertexArray(cubeVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        bool horizontal = true, first_iteration = true;
-        unsigned int amount = 10;
-        gaussBlurShader.use();
-        for (unsigned int i = 0; i < amount; i++) {
-
-            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]); 
-            gaussBlurShader.setInt("horizontal", horizontal);
-            glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongBuffer[!horizontal]);
-
-            glBindVertexArray(quadVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-
-            horizontal = !horizontal;
-            if (first_iteration)
-                first_iteration = false;
-        }
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, pingpongBuffer[!horizontal]);
-
-        renderFrameBufferToScreen(colorBuffers[0], bloomBlendShader);
+        renderFrameBufferToScreen(hdrScreenShader);
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
@@ -537,15 +413,16 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
     return textureID;
 }
 
-void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShader)  {
+void renderFrameBufferToScreen(Shader screenQuadShader)  {
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClear(GL_COLOR_BUFFER_BIT);
 
         screenQuadShader.use();
-        glBindVertexArray(quadVAO);
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, screenTexture);
+        glBindVertexArray(quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
@@ -720,6 +597,41 @@ void getVAOS() {
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenFramebuffers(1, &screenFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
+
+    glGenTextures(1, &screenTexture);
+    glBindTexture(GL_TEXTURE_2D, screenTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glGenRenderbuffers(1, &screenRBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, screenRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, screenRBO);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
+    }
+
+    // uniform buffer block
+    glGenBuffers(1, &cameraMatrixBlock);
+    glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
+    glBufferData(GL_UNIFORM_BUFFER, 128, NULL, GL_STATIC_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, cameraMatrixBlock);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+    // load the camera projection matrix into the uniform buffer object memory
+    glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
+            (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
+    glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, &projection);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 std::string getBuildPath(std::string argv_0) {
