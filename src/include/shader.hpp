@@ -23,8 +23,11 @@ public:
         // 1. retrieve the vertex/fragment source code from filePath
         std::string vertexCode;
         std::string fragmentCode;
+
         std::ifstream vShaderFile;
         std::ifstream fShaderFile;
+
+        // do vert and frag shader first because they must exist
         // ensure ifstream objects can throw exceptions:
         vShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
         fShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
@@ -44,11 +47,11 @@ public:
             vertexCode   = vShaderStream.str();
             fragmentCode = fShaderStream.str();		
         }
-        catch(const std::ifstream::failure& e)
+        catch (const std::ifstream::failure& e)
         {
             std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ:\n\t" << vertexPath << '\n';
-
         }
+
         const char* vShaderCode = vertexCode.c_str();
         const char* fShaderCode = fragmentCode.c_str();
 
@@ -78,19 +81,21 @@ public:
         // delete the shaders as they're linked into our program now and no longer necessary
         glDeleteShader(vertex);
         glDeleteShader(fragment);
-    }
-    void addGeomShader(const char* geometryPath) {
 
-        // 1. retrieve the source code from filePath
+        const std::string geometryPath = buildPath + "shaders/" + shaderName + "/" + shaderName + ".geom";
         std::string geometryCode;
         std::ifstream gShaderFile;
-        // ensure ifstream objects can throw exceptions:
+
+        // now geometry if it exists
+        gShaderFile.open(geometryPath.c_str());
+        if (!gShaderFile.is_open()) {
+            return;
+        }
+
         gShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
-        try 
-        {
+        try {
             // open files
-            gShaderFile.open(geometryPath);
-            std::stringstream gShaderStream, fShaderStream;
+            std::stringstream gShaderStream;
             // read file's buffer contents into streams
             gShaderStream << gShaderFile.rdbuf();
             // close file handlers
@@ -98,17 +103,16 @@ public:
             // convert stream into string
             geometryCode = gShaderStream.str();
         }
-        catch(const std::ifstream::failure& e)
-        {
-            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+        catch (const std::ifstream::failure& e) {
+            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ:\n\t" << geometryPath << '\n';
         }
+
         const char* gShaderCode = geometryCode.c_str();
 
-        // 2. compile shaders
         unsigned int geometry;
         //int success;
         //char infoLog[512];
-        
+
         // vertex Shader
         geometry = glCreateShader(GL_GEOMETRY_SHADER);
         glShaderSource(geometry, 1, &gShaderCode, NULL);
@@ -119,7 +123,7 @@ public:
         glAttachShader(ID, geometry);
         glLinkProgram(ID);
         checkCompileErrors(ID, "PROGRAM");
-    
+
         // delete the shaders as they're linked into our program now and no longer necessary
         glDeleteShader(geometry);
     }

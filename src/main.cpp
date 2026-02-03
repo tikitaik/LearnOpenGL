@@ -146,13 +146,10 @@ int main(int argc, char* argv[])
     bloomBlendShader.setInt("scene", 0);
     bloomBlendShader.setInt("bloomBlur", 1);
 
-    depthMapShader.addGeomShader((shaderPath + "depth_map/depth_map.geom").c_str());
-
     hdrScreenShader.use();
     hdrScreenShader.setInt("tex", 0);
 
     modelShader.use();
-    modelShader.addGeomShader((shaderPath + "model/model.geom").c_str());
     modelShader.setInt("material.diffuse", 0);
     modelShader.setInt("material.specular", 0);
     modelShader.setFloat("material.shininess", 200.0f);
