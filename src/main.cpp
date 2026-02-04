@@ -12,8 +12,8 @@
 #include "model.hpp"
 #include "shader.hpp"
 
-#define WIDTH 1280
-#define HEIGHT 720
+#define SCR_WIDTH 1280
+#define SCR_HEIGHT 720
 
 #define ASTEROID_AMOUNT 100000
 
@@ -57,7 +57,7 @@ unsigned int screenRBO;
 
 unsigned int cameraMatrixBlock;
 
-Camera camera(initCameraPos, initCameraFront, initCameraUp, WIDTH, HEIGHT);
+Camera camera(initCameraPos, initCameraFront, initCameraUp, SCR_WIDTH, SCR_HEIGHT);
 
 int main(int argc, char* argv[])
 {
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // glfw window creation
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "heheheheheh :)))", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "heheheheheh :)))", NULL, NULL);
     if (window == NULL) 
     {
         std::cout << "Failed to create GLFW window" << '\n';
@@ -111,6 +111,7 @@ int main(int argc, char* argv[])
     Shader gbufferShader(buildPath, "gbuffer");
     Shader gbufferlightingShader(buildPath, "gbufferlighting");
     Shader hdrScreenShader(buildPath, "hdr");
+    Shader lightboxShader(buildPath, "lightbox");
     Shader screenQuadShader(buildPath, "screenquad");
 
     // bruh ass uniforms
@@ -128,16 +129,34 @@ int main(int argc, char* argv[])
     gbufferlightingShader.setInt("gNormal", 1);
     gbufferlightingShader.setInt("gAlbedoSpec", 2);
 
-    for (int i = 0; i < 8; i++) {
-        for (int j = 0; j < 4; j++) {
-            gbufferlightingShader.setVec3("lights[" + std::to_string(i * 4 + j) + "].Position", 
-                    glm::vec3(float(i * 4 - 16), 5.0f, float(j * 4 - 8)));
-            gbufferlightingShader.setVec3("lights[" + std::to_string(i * 4 + j) + "].Color", 
-                    //glm::vec3(float(i) / 8.0f, 0.5f, float(j) / 4.0f));
-                    glm::vec3(0.4f));
-        }
-    }
+    const unsigned int NR_LIGHTS = 32;
+    std::vector<glm::vec3> lightPositions;
+    std::vector<glm::vec3> lightColors;
+    srand(13);
+    for (unsigned int i = 0; i < NR_LIGHTS; i++)
+    {
+        // calculate slightly random offsets
+        float xPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 3.0);
+        float yPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 4.0);
+        float zPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 3.0);
+        lightPositions.push_back(glm::vec3(xPos, yPos, zPos));
+        // also calculate random color
+        float rColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
+        float gColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
+        float bColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
+        lightColors.push_back(glm::vec3(rColor, gColor, bColor));
 
+        gbufferlightingShader.setVec3("lights[" + std::to_string(i) + "].Position", lightPositions[i]);
+        gbufferlightingShader.setVec3("lights[" + std::to_string(i) + "].Color", lightColors[i]);
+
+        float constant  = 1.0; 
+        float linear    = 0.7;
+        float quadratic = 1.8;
+        float lightMax  = std::fmaxf(std::fmaxf(rColor, gColor), bColor);
+        gbufferlightingShader.setFloat("lights[" + std::to_string(i) + "].Radius",
+            (-linear +  std::sqrtf(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * lightMax))) 
+            / (2 * quadratic));
+    }
 
     hdrScreenShader.use();
     hdrScreenShader.setInt("tex", 0);
@@ -155,6 +174,17 @@ int main(int argc, char* argv[])
     Model backpack(objDirPath + backpackPath);
     Model shadowTheHedgehog(objDirPath + shadowHedgehogPath);
 
+    std::vector<glm::vec3> objectPositions;
+    objectPositions.push_back(glm::vec3(-3.0,  -0.5, -3.0));
+    objectPositions.push_back(glm::vec3( 0.0,  -0.5, -3.0));
+    objectPositions.push_back(glm::vec3( 3.0,  -0.5, -3.0));
+    objectPositions.push_back(glm::vec3(-3.0,  -0.5,  0.0));
+    objectPositions.push_back(glm::vec3( 0.0,  -0.5,  0.0));
+    objectPositions.push_back(glm::vec3( 3.0,  -0.5,  0.0));
+    objectPositions.push_back(glm::vec3(-3.0,  -0.5,  3.0));
+    objectPositions.push_back(glm::vec3( 0.0,  -0.5,  3.0));
+    objectPositions.push_back(glm::vec3( 3.0,  -0.5,  3.0));
+
     // -------------- //
     // BUFFER OBJECTS //
     // -------------- //
@@ -171,7 +201,7 @@ int main(int argc, char* argv[])
     // - position color buffer
     glGenTextures(1, &gPosition);
     glBindTexture(GL_TEXTURE_2D, gPosition);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
@@ -179,7 +209,7 @@ int main(int argc, char* argv[])
     // - normal color buffer
     glGenTextures(1, &gNormal);
     glBindTexture(GL_TEXTURE_2D, gNormal);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
@@ -187,7 +217,7 @@ int main(int argc, char* argv[])
     // - color + specular color buffer
     glGenTextures(1, &gAlbedoSpec);
     glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
@@ -199,7 +229,7 @@ int main(int argc, char* argv[])
     unsigned int gRBO;
     glGenRenderbuffers(1, &gRBO);
     glBindRenderbuffer(GL_RENDERBUFFER, gRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, gRBO);
 
@@ -253,16 +283,16 @@ int main(int argc, char* argv[])
         gbufferShader.setVec3("viewPos", camera.pos);
         gbufferShader.setVec3("lightPos", lightPos);
 
-        for (float i = -1; i < 2; i++) {
-            for (float j = -1; j < 2; j++) {
-                glm::mat4 model(1.0f);
-                model = glm::translate(model, glm::vec3(5 * i, 0.0f, 5 * j));
-                gbufferShader.setMat4("model", model);
-                backpack.Draw(gbufferShader);
-            }
+        for (unsigned int i = 0; i < objectPositions.size(); i++) {
+            glm::mat4 model(1.0f);
+            model = glm::translate(model, objectPositions[i]);
+            model = glm::scale(model, glm::vec3(0.5f));
+            gbufferShader.setMat4("model", model);
+            backpack.Draw(gbufferShader);
         }
 
         glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
+        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glActiveTexture(GL_TEXTURE0);
@@ -277,6 +307,25 @@ int main(int argc, char* argv[])
 
         glBindVertexArray(quadVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFBO); // write to default framebuffer
+        glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
+        lightboxShader.use();
+        for (unsigned int i = 0; i < lightPositions.size(); i++) {
+            
+            glm::mat4 model(1.0f);
+            model = glm::translate(model, lightPositions[i]);
+            model = glm::scale(model, glm::vec3(0.125f));
+
+            lightboxShader.setMat4("model", model);
+            lightboxShader.setVec3("lightColor", lightColors[i]);
+
+            glBindVertexArray(cubeVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
         renderFrameBufferToScreen(hdrScreenShader);
 
@@ -676,7 +725,7 @@ void getVAOS() {
 
     glGenTextures(1, &screenTexture);
     glBindTexture(GL_TEXTURE_2D, screenTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
@@ -684,7 +733,7 @@ void getVAOS() {
 
     glGenRenderbuffers(1, &screenRBO);
     glBindRenderbuffer(GL_RENDERBUFFER, screenRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, screenRBO);
 
@@ -703,7 +752,7 @@ void getVAOS() {
 
     // load the camera projection matrix into the uniform buffer object memory
     glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
-            (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
+            (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
     glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, 64, &projection);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
