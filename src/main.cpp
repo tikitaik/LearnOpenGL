@@ -27,6 +27,7 @@ unsigned int loadCubemap(std::vector<std::string> faces);
 // custom rendering functions
 void renderScene(Shader shader, Model shadowTheHedgehog); 
 void renderFrameBufferToScreen(Shader screenQuadShader);
+void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShader);
 
 // custom silly functions
 void getVAOS();
@@ -105,19 +106,11 @@ int main(int argc, char* argv[])
 
     glm::vec3 lightPos(0.0f, 5.0f, 0.0f);
 
-    float far_plane = 25.0f;
-
     // back to boring setup stuff now
     Shader blinnphongShader(buildPath, "blinnphong");
-    Shader bloomShader(buildPath, "bloom");
-    Shader bloomBlendShader(buildPath, "bloomblend");
-    Shader depthMapShader(buildPath, "depthmap");
-    Shader gaussBlurShader(buildPath, "gaussblur");
-    Shader lightBoxShader(buildPath, "lightbox");
+    Shader gbufferShader(buildPath, "gbuffer");
+    Shader gbufferlightingShader(buildPath, "gbufferlighting");
     Shader hdrScreenShader(buildPath, "hdr");
-    Shader modelShader(buildPath, "model");
-    Shader normalMapShader(buildPath, "normalmap");
-    Shader parallaxShader(buildPath, "parallax");
     Shader screenQuadShader(buildPath, "screenquad");
 
     // bruh ass uniforms
@@ -125,33 +118,29 @@ int main(int argc, char* argv[])
     blinnphongShader.setInt("diffuseMap", 0);
     blinnphongShader.setVec3("lightPos", lightPos);
 
+    gbufferShader.use();
+    gbufferShader.setInt("texture_diffuse1", 0);
+    gbufferShader.setInt("texture_specular1", 1);
+
+    gbufferlightingShader.use();
+    gbufferlightingShader.setVec3("viewPos", camera.pos);
+    gbufferlightingShader.setInt("gPosition", 0);
+    gbufferlightingShader.setInt("gNormal", 1);
+    gbufferlightingShader.setInt("gAlbedoSpec", 2);
+
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 4; j++) {
+            gbufferlightingShader.setVec3("lights[" + std::to_string(i * 4 + j) + "].Position", 
+                    glm::vec3(float(i * 4 - 16), 5.0f, float(j * 4 - 8)));
+            gbufferlightingShader.setVec3("lights[" + std::to_string(i * 4 + j) + "].Color", 
+                    //glm::vec3(float(i) / 8.0f, 0.5f, float(j) / 4.0f));
+                    glm::vec3(0.4f));
+        }
+    }
+
+
     hdrScreenShader.use();
     hdrScreenShader.setInt("tex", 0);
-
-    modelShader.use();
-    modelShader.setInt("material.diffuse", 0);
-    modelShader.setInt("material.specular", 0);
-    modelShader.setFloat("material.shininess", 200.0f);
-    modelShader.setInt("ourTex", 0);
-
-    modelShader.setVec3("dirLight.direction", glm::vec3(1.0f, -1.0f, -1.0f));
-    modelShader.setVec3("dirLight.ambient", glm::vec3(0.01f, 0.01f, 0.01f));
-    modelShader.setVec3("dirLight.diffuse", glm::vec3(0.1f, 0.1f, 0.1f));
-    modelShader.setVec3("dirLight.specular", glm::vec3(0.9f, 0.9f, 0.9f));
-
-    normalMapShader.use();
-    normalMapShader.setVec3("lightPos", lightPos);
-    normalMapShader.setInt("diffuseMap", 0);
-    normalMapShader.setInt("normalMap", 1);
-    normalMapShader.setInt("depthMap", 2);
-    normalMapShader.setFloat("far_plane", far_plane);
-
-    parallaxShader.use();
-    parallaxShader.setVec3("lightPos", lightPos);
-    parallaxShader.setInt("diffuseMap", 0);
-    parallaxShader.setInt("normalMap", 1);
-    parallaxShader.setInt("depthMap", 2);
-    parallaxShader.setFloat("height_scale", 0.1f);
 
     std::string objDirPath = buildPath + "resources/objects/";
     std::string backpackPath = "backpack/backpack.obj";
@@ -171,6 +160,54 @@ int main(int argc, char* argv[])
     // -------------- //
 
     getVAOS();
+    
+
+    unsigned int gBuffer;
+    glGenFramebuffers(1, &gBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+
+    unsigned int gPosition, gNormal, gAlbedoSpec;
+
+    // - position color buffer
+    glGenTextures(1, &gPosition);
+    glBindTexture(GL_TEXTURE_2D, gPosition);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+
+    // - normal color buffer
+    glGenTextures(1, &gNormal);
+    glBindTexture(GL_TEXTURE_2D, gNormal);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+
+    // - color + specular color buffer
+    glGenTextures(1, &gAlbedoSpec);
+    glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
+  
+    // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+    unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    glDrawBuffers(3, attachments);
+
+    unsigned int gRBO;
+    glGenRenderbuffers(1, &gRBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, gRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, gRBO);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glfwSwapInterval(0);
 
@@ -198,25 +235,48 @@ int main(int argc, char* argv[])
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        glm::mat4 view = camera.GetViewMatrix();
-
         processInput(window);
 
         // load view matrix into memory
+        glm::mat4 view = camera.GetViewMatrix();
         glBindBuffer(GL_UNIFORM_BUFFER, cameraMatrixBlock);
         glBufferSubData(GL_UNIFORM_BUFFER, 64, 64, &view);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         // Actual Rendering //
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        gbufferShader.use();
+        gbufferShader.setVec3("viewPos", camera.pos);
+        gbufferShader.setVec3("lightPos", lightPos);
+
+        for (float i = -1; i < 2; i++) {
+            for (float j = -1; j < 2; j++) {
+                glm::mat4 model(1.0f);
+                model = glm::translate(model, glm::vec3(5 * i, 0.0f, 5 * j));
+                gbufferShader.setMat4("model", model);
+                backpack.Draw(gbufferShader);
+            }
+        }
+
         glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        blinnphongShader.use();
-        blinnphongShader.setVec3("viewPos", camera.pos);
-        blinnphongShader.setVec3("lightPos", glm::vec3(0.0f, 5.0f, 0.0f));
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gPosition);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, gNormal);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
 
-        renderScene(blinnphongShader, shadowTheHedgehog); 
+        gbufferlightingShader.use();
+        gbufferlightingShader.setVec3("viewPos", camera.pos);
+
+        glBindVertexArray(quadVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         renderFrameBufferToScreen(hdrScreenShader);
 
@@ -426,6 +486,19 @@ void renderFrameBufferToScreen(Shader screenQuadShader)  {
         glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
+void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShader) {
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        screenQuadShader.use();
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, screenTexture);
+        glBindVertexArray(quadVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
 void getTangents(const unsigned int rowSize,
         const unsigned int triangleCount, float* vertices, float* tangents) {
 
@@ -603,7 +676,7 @@ void getVAOS() {
 
     glGenTextures(1, &screenTexture);
     glBindTexture(GL_TEXTURE_2D, screenTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTexture, 0);
@@ -618,6 +691,8 @@ void getVAOS() {
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
     }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // uniform buffer block
     glGenBuffers(1, &cameraMatrixBlock);
