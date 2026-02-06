@@ -8,7 +8,7 @@ uniform samplerCube skybox;
 
 void main() {
 
-    vec3 envColor = texture(skybox, localPos).rgb;
+    vec3 envColor = textureLod(skybox, localPos, 2.0f).rgb;
 
     envColor = envColor / (envColor + vec3(1.0));
     envColor = pow(envColor, vec3(1.0/2.2)); 
