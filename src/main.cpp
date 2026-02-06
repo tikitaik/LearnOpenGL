@@ -336,6 +336,9 @@ int main(int argc, char* argv[])
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLUTTexture, 0);
 
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "BRDF FBO incomplete\n";
+
     glViewport(0, 0, 512, 512);
     brdfShader.use();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -370,11 +373,17 @@ int main(int argc, char* argv[])
         glm::mat4 model(1.0f);
 
         pbrShader.use();
+        pbrShader.setInt("irradianceMap", 0);
+        pbrShader.setInt("prefilterMap", 1);
+        pbrShader.setInt("brdfLUT", 2);
         pbrShader.setVec3("camPos", camera.pos);
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
 
@@ -408,6 +417,9 @@ int main(int argc, char* argv[])
             pbrShader.setFloat("metallic", float(i) / float(nrRows) + offset);
 
             for (int j = 0; j < nrCols; j++) {
+
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
 
                 pbrShader.setFloat("roughness", float (j) / float(nrCols) + offset);
 
