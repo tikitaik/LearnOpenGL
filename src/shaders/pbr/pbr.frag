@@ -52,7 +52,7 @@ void main() {
         kD *= 1.0f - metallic;
 
         vec3 numerator = NDF * G * F;
-        float denominator = 4.0f * max(dot(N, V), 0.0f) * max(dot(N, L), 0.0f) + 5.0f;
+        float denominator = 4.0f * max(dot(N, V), 0.0f) * max(dot(N, L), 0.0f) + 0.0001f;
         vec3 specular = numerator / denominator;
 
         // add outgoing radiance Lo
