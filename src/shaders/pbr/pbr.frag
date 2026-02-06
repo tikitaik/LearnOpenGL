@@ -16,7 +16,9 @@ uniform float ao;
 uniform vec3 lightPositions[4];
 uniform vec3 lightColors[4];
 
-vec3 fresnelShlick(float cosTheta, vec3 F0);
+uniform samplerCube irradianceMap;
+
+vec3 fresnelShlick(float cosTheta, vec3 F0, float roughness);
 float DistributionGGX(vec3 N, vec3 H, float roughness);
 float GeometrySchlickGGX(float NdotV, float roughness);
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness);
@@ -44,7 +46,7 @@ void main() {
 
         float NDF = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
-        vec3 F = fresnelShlick(max(dot(H, V), 0.0f), F0);
+        vec3 F = fresnelShlick(max(dot(H, V), 0.0f), F0, roughness);
 
         vec3 kS = F;
         vec3 kD = vec3(1.0f - kS);
@@ -60,7 +62,13 @@ void main() {
         Lo += (kD * albedo / PI + specular) * radiance * NdotL;
     }
 
-    vec3 ambient = vec3(0.03f) * albedo * ao;
+    vec3 kS = fresnelShlick(max(dot(N, V), 0.0f), F0, roughness);
+    vec3 kD = 1.0f - kS;
+    kD *= 1.0f - metallic;
+    vec3 irradiance = texture(irradianceMap, N).rgb;
+    vec3 diffuse = irradiance * albedo;
+    vec3 ambient = (kD * diffuse) * ao;
+
     vec3 color = ambient + Lo;
 
     color = color / (color + vec3(1.0f));
@@ -69,9 +77,9 @@ void main() {
     FragColor = vec4(color, 1.0f);
 }
 
-vec3 fresnelShlick(float cosTheta, vec3 F0) {
+vec3 fresnelShlick(float cosTheta, vec3 F0, float roughness) {
 
-    return F0 + (1.0f - F0) * pow(clamp(1.0f - cosTheta, 0.0f, 1.0f), 5.0f);
+    return F0 + (max(vec3(1.0f - roughness), F0) - F0) * pow(clamp(1.0f - cosTheta, 0.0f, 1.0f), 5.0f);
 }
 
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
