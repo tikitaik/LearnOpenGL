@@ -209,13 +209,15 @@ int main(int argc, char* argv[])
         int nrRows = 7;
         int nrCols = 7;
 
+        float offset = 1.0f / float(nrRows) / 2;
+
         for (int i = 0; i < nrRows; i++) {
 
-            pbrShader.setFloat("metallic", float(i) / float(6));
+            pbrShader.setFloat("metallic", float(i) / float(nrRows) + offset);
 
             for (int j = 0; j < nrCols; j++) {
 
-                pbrShader.setFloat("roughness", float (j) / float(6));
+                pbrShader.setFloat("roughness", float (j) / float(nrCols) + offset);
 
                 float disp = 6.0f;
 
