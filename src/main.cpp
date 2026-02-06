@@ -8,6 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <stb_image.h>
+#include <string>
 
 #include "camera.hpp"
 #include "model.hpp"
@@ -26,7 +27,7 @@ unsigned int loadTexture(char const * path, bool isSRGB);
 unsigned int loadCubemap(std::vector<std::string> faces);
 
 // custom rendering functions
-void renderScene(Shader shader, Model shadowTheHedgehog); 
+void renderScene(Shader shader, Model sphere); 
 void renderFrameBufferToScreen(Shader screenQuadShader);
 void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShader);
 
@@ -41,9 +42,9 @@ float deltaTime = 0.0f; // time between current and last frame
 float lastFrame = 0.0f; // time from start to last frame being rendered
 
 // camera
-const glm::vec3 initCameraPos   = glm::vec3(0.0f,  3.0f,  4.0f);
-const glm::vec3 initCameraFront = glm::vec3(0.0f, -0.5f, -1.0f);
-const glm::vec3 initCameraUp    = glm::vec3(0.0f,  1.0f,  0.0f);
+const glm::vec3 initCameraPos   = glm::vec3(0.0f,  0.0f, 5.0f);
+const glm::vec3 initCameraFront = glm::vec3(0.0f, 0.0f, 0.0f);
+const glm::vec3 initCameraUp    = glm::vec3(0.0f,  1.0f, 0.0f);
 
 // object VAOs
 unsigned int quadVAO, quadVBO;
@@ -107,180 +108,40 @@ int main(int argc, char* argv[])
     std::string buildPath = getBuildPath(std::string(argv[0]));
     std::string shaderPath = buildPath + "shaders/";
 
-    glm::vec3 lightPos(0.0f, 5.0f, 0.0f);
-
     // back to boring setup stuff now
-    Shader blinnphongShader(buildPath, "blinnphong");
-    Shader gbufferShader(buildPath, "gbuffer");
-    Shader gbufferlightingShader(buildPath, "gbufferlighting");
-    Shader hdrScreenShader(buildPath, "hdr");
+    Shader pbrShader(buildPath, "pbr");
     Shader screenQuadShader(buildPath, "screenquad");
-    Shader ssaoBlurShader(buildPath, "ssaoblur");
-    Shader ssaoGeometryShader(buildPath, "ssaogeometry");
-    Shader ssaoTextureShader(buildPath, "ssaotexture");
-    Shader ssaoLightingShader(buildPath, "ssaolighting");
+
+    glm::vec3 lightPositions[] = {
+        glm::vec3(-10.0f,  10.0f, 10.0f),
+        glm::vec3( 10.0f,  10.0f, 10.0f),
+        glm::vec3(-10.0f, -10.0f, 10.0f),
+        glm::vec3( 10.0f, -10.0f, 10.0f),
+    };
+    glm::vec3 lightColors[] = {
+        glm::vec3(300.0f, 300.0f, 300.0f),
+        glm::vec3(300.0f, 300.0f, 300.0f),
+        glm::vec3(300.0f, 300.0f, 300.0f),
+        glm::vec3(300.0f, 300.0f, 300.0f)
+    };
 
     // bruh ass uniforms
-    blinnphongShader.use();
-    blinnphongShader.setInt("diffuseMap", 0);
-    blinnphongShader.setVec3("lightPos", lightPos);
-
-    gbufferShader.use();
-    gbufferShader.setInt("texture_diffuse1", 0);
-    gbufferShader.setInt("texture_specular1", 1);
-
-    gbufferlightingShader.use();
-    gbufferlightingShader.setVec3("viewPos", camera.pos);
-    gbufferlightingShader.setInt("gPosition", 0);
-    gbufferlightingShader.setInt("gNormal", 1);
-    gbufferlightingShader.setInt("gAlbedoSpec", 2);
-
-    hdrScreenShader.use();
-    hdrScreenShader.setInt("tex", 0);
-
-    ssaoBlurShader.use();
-    ssaoBlurShader.setInt("ssaoInput", 0);
-
-    ssaoLightingShader.use();
-    ssaoLightingShader.setInt("gPosition", 0);
-    ssaoLightingShader.setInt("gNormal", 1);
-    ssaoLightingShader.setInt("gAlbedo", 2);
-    ssaoLightingShader.setInt("ssao", 3);
-
-    ssaoTextureShader.use();
-    ssaoTextureShader.setInt("gPosition", 0);
-    ssaoTextureShader.setInt("gNormal", 1);
-    ssaoTextureShader.setInt("texNoise", 2);
-    ssaoTextureShader.setMat4("projection", projection);
-    
-    std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // random floats between [0.0, 1.0]
-    std::default_random_engine generator;
-
-    std::vector<glm::vec3> ssaoKernel;
-    std::vector<glm::vec3> ssaoNoise;
-
-    for (unsigned int i = 0; i < 64; ++i) {
-        glm::vec3 sample(
-                randomFloats(generator) * 2.0 - 1.0, 
-                randomFloats(generator) * 2.0 - 1.0, 
-                randomFloats(generator)
-                );
-        sample  = glm::normalize(sample);
-        sample *= randomFloats(generator);
-        float scale = (float)i / 64.0; 
-        scale = 0.1f + scale * scale * (1.0f - 0.1f);
-        sample *= scale;
-        ssaoKernel.push_back(sample);
-        ssaoTextureShader.setVec3("samples[" + std::to_string(i) + "]", ssaoKernel[i]);
-    }
-
-    for (unsigned int i = 0; i < 16; i++) {
-        glm::vec3 noise(
-                randomFloats(generator) * 2.0 - 1.0, 
-                randomFloats(generator) * 2.0 - 1.0, 
-                0.0f); 
-        ssaoNoise.push_back(noise);
-    }  
-
     std::string objDirPath = buildPath + "resources/objects/";
     std::string backpackPath = "backpack/backpack.obj";
-    std::string buddhaPath = "buddha/buddha.obj";
     std::string bunnyPath = "bunny/bunny.obj";
-    std::string dragonPath = "dragon/dragon.obj";
-    std::string sponzaPath = "sponza/sponza.obj";
     std::string planetPath = "planet/planet.obj";
     std::string rockPath = "rock/rock.obj";
     std::string shadowHedgehogPath = "shadow/scene.gltf";
+    std::string spherePath = "sphere/sphere.obj";
 
     Model backpack(objDirPath + backpackPath);
-    Model shadowTheHedgehog(objDirPath + shadowHedgehogPath);
+    Model sphere(objDirPath + spherePath);
 
     // -------------- //
     // BUFFER OBJECTS //
     // -------------- //
 
     getVAOS();
-
-    unsigned int noiseTexture; 
-    glGenTextures(1, &noiseTexture);
-    glBindTexture(GL_TEXTURE_2D, noiseTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);   
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    unsigned int ssaoFBO, ssaoColorBuffer;
-    glGenFramebuffers(1, &ssaoFBO);  
-    glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
-    glGenTextures(1, &ssaoColorBuffer);
-    glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0); 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    unsigned int ssaoBlurFBO, ssaoColorBufferBlur;
-    glGenFramebuffers(1, &ssaoBlurFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
-    glGenTextures(1, &ssaoColorBufferBlur);
-    glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, SCR_WIDTH, SCR_HEIGHT, 0, GL_RED, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBufferBlur, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    unsigned int gBuffer;
-    glGenFramebuffers(1, &gBuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-
-    unsigned int gPosition, gNormal, gAlbedoSpec;
-
-    // - position color buffer
-    glGenTextures(1, &gPosition);
-    glBindTexture(GL_TEXTURE_2D, gPosition);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
-
-    // - normal color buffer
-    glGenTextures(1, &gNormal);
-    glBindTexture(GL_TEXTURE_2D, gNormal);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
-
-    // - color + specular color buffer
-    glGenTextures(1, &gAlbedoSpec);
-    glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
-  
-    // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
-    unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-    glDrawBuffers(3, attachments);
-
-    unsigned int gRBO;
-    glGenRenderbuffers(1, &gRBO);
-    glBindRenderbuffer(GL_RENDERBUFFER, gRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, gRBO);
-
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n";
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glfwSwapInterval(0);
 
@@ -289,14 +150,6 @@ int main(int argc, char* argv[])
     // ------------- //
 
     std::string texPath = buildPath + "resources/textures/";
-
-    planeTexture = loadTexture((texPath + "brickwall.jpg").c_str(), true);
-    planeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str(), false);
-    planeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str(), false);
-
-    cubeTexture = loadTexture((texPath + "container2.png").c_str(), true);
-    cubeNormalTexture = loadTexture((texPath + "bricks2_normal.jpg").c_str(), false);
-    cubeDispTexture = loadTexture((texPath + "bricks2_disp.jpg").c_str(), false);
 
     // --------- //
     // Main Loop //
@@ -319,66 +172,67 @@ int main(int argc, char* argv[])
         // Actual Rendering //
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        ssaoGeometryShader.use();
-
-        // plane
-        glm::mat4 model(1.0f);
-        model = glm::translate(model, glm::vec3(0.0, -1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(7.5f));
-        ssaoGeometryShader.setMat4("model", model);
-        glBindVertexArray(planeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        // backpack
-        model = glm::mat4(1.0f);
-        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0, 0.0, 0.0));
-        ssaoGeometryShader.setMat4("model", model);
-        backpack.Draw(ssaoGeometryShader);
-
-        // SSAAO TIME //
-        ssaoTextureShader.use();
-        glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, gPosition);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, gNormal);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, noiseTexture);
-
-        glBindVertexArray(quadVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        ssaoBlurShader.use();
-        glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
-
-        glBindVertexArray(quadVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        ssaoLightingShader.use();
         glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, gPosition);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, gNormal);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
-        glBindVertexArray(quadVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glm::mat4 model(1.0f);
 
-        renderFrameBufferToScreen(hdrScreenShader);
+        pbrShader.use();
+        pbrShader.setVec3("camPos", camera.pos);
+        pbrShader.setVec3("albedo", glm::vec3(0.5f, 0.0f, 0.0f));
+        pbrShader.setFloat("metallic", 0.5f);
+        pbrShader.setFloat("roughness", 0.5f);
+        pbrShader.setFloat("ao", 1.0f);
+
+        for (int i = 0; i < 4; i++) {
+            pbrShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
+            pbrShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+        }
+
+        for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); i++)
+        {
+            glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
+            //newPos = lightPositions[i];
+            pbrShader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+            pbrShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, newPos);
+            model = glm::scale(model, glm::vec3(0.5f));
+            
+            pbrShader.setMat4("model", model);
+            glBindVertexArray(cubeVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glBindVertexArray(0);
+        }
+
+        int nrRows = 7;
+        int nrCols = 7;
+
+        for (int i = 0; i < nrRows; i++) {
+
+            pbrShader.setFloat("metallic", float(i) / float(6));
+
+            for (int j = 0; j < nrCols; j++) {
+
+                pbrShader.setFloat("roughness", float (j) / float(6));
+
+                float disp = 6.0f;
+
+                model = glm::mat4(1.0f);
+                model = glm::translate(model, glm::vec3(
+                            disp * float(j) / float(6) - disp / 2.0f,
+                            disp * float(i) / float(6) - disp / 2.0f,
+                            0.0f));
+                model = glm::scale(model, glm::vec3(0.5f));
+                model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+                pbrShader.setMat4("model", model);
+                sphere.Draw(pbrShader);
+            }
+        }
+
+
+        renderFrameBufferToScreen(screenQuadShader);
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
@@ -391,7 +245,7 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-void renderScene(Shader shader, Model shadowTheHedgehog) {
+void renderScene(Shader shader, Model sphere) {
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -460,7 +314,7 @@ void renderScene(Shader shader, Model shadowTheHedgehog) {
     model = glm::scale(model, glm::vec3(0.05f));
     model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     shader.setMat4("model", model);
-    shadowTheHedgehog.Draw(shader);
+    sphere.Draw(shader);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
