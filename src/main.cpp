@@ -50,6 +50,8 @@ unsigned int planeVAO, planeVBO, planeTangentsVBO;
 unsigned int cubeVAO, cubeVBO, cubeTangentsVBO;
 unsigned int planeTexture, planeNormalTexture, planeDispTexture;
 unsigned int cubeTexture, cubeNormalTexture, cubeDispTexture;
+unsigned int sphereVAO = 0;
+unsigned int indexCount;
 
 unsigned int screenFBO;
 unsigned int screenTexture;
@@ -60,6 +62,8 @@ unsigned int cameraMatrixBlock;
 Camera camera(initCameraPos, initCameraFront, initCameraUp, SCR_WIDTH, SCR_HEIGHT);
 const glm::mat4 projection = glm::perspective(glm::radians(camera.fov),
         (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+
+void renderSphere();
 
 void renderCube() {
     glBindVertexArray(cubeVAO);
@@ -120,6 +124,7 @@ int main(int argc, char* argv[])
     std::string shaderPath = buildPath + "shaders/";
 
     // back to boring setup stuff now
+    Shader blinnPhongShader(buildPath, "blinnphong");
     Shader brdfShader(buildPath, "brdf");
     Shader equirectangularToCubemapShader(buildPath, "eqrtocb");
     Shader irradianceShader(buildPath, "irradiance");
@@ -372,12 +377,6 @@ int main(int argc, char* argv[])
 
         glm::mat4 model(1.0f);
 
-        pbrShader.use();
-        pbrShader.setInt("irradianceMap", 0);
-        pbrShader.setInt("prefilterMap", 1);
-        pbrShader.setInt("brdfLUT", 2);
-        pbrShader.setVec3("camPos", camera.pos);
-
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
 
@@ -386,6 +385,13 @@ int main(int argc, char* argv[])
 
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+
+        pbrShader.use();
+        pbrShader.setInt("irradianceMap", 0);
+        pbrShader.setInt("prefilterMap", 1);
+        pbrShader.setInt("brdfLUT", 2);
+        pbrShader.setVec3("camPos", camera.pos);
+        pbrShader.setMat4("model", model);
 
         for (int i = 0; i < 4; i++) {
             pbrShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
@@ -406,7 +412,7 @@ int main(int argc, char* argv[])
             pbrShader.setMat4("model", model);
             renderCube();
         }
-
+        
         int nrRows = 7;
         int nrCols = 7;
 
@@ -418,12 +424,9 @@ int main(int argc, char* argv[])
 
             for (int j = 0; j < nrCols; j++) {
 
-                glActiveTexture(GL_TEXTURE2);
-                glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
-
                 pbrShader.setFloat("roughness", float (j) / float(nrCols) + offset);
 
-                float disp = 6.0f;
+                float disp = 8.0f;
 
                 model = glm::mat4(1.0f);
                 model = glm::translate(model, glm::vec3(
@@ -433,14 +436,14 @@ int main(int argc, char* argv[])
                 model = glm::scale(model, glm::vec3(0.5f));
                 model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
                 pbrShader.setMat4("model", model);
-                sphere.Draw(pbrShader);
+                renderSphere();
             }
         }
-
         
         // temp skybox
         skyboxShader.use();
         skyboxShader.setInt("skybox", 0);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
         glBindVertexArray(cubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -456,6 +459,99 @@ int main(int argc, char* argv[])
   
     glfwTerminate();
     return 0;
+}
+
+void renderSphere()
+{
+    if (sphereVAO == 0)
+    {
+        glGenVertexArrays(1, &sphereVAO);
+
+        unsigned int vbo, ebo;
+        glGenBuffers(1, &vbo);
+        glGenBuffers(1, &ebo);
+
+        std::vector<glm::vec3> positions;
+        std::vector<glm::vec2> uv;
+        std::vector<glm::vec3> normals;
+        std::vector<unsigned int> indices;
+
+        const unsigned int X_SEGMENTS = 64;
+        const unsigned int Y_SEGMENTS = 64;
+        const float PI = 3.14159265359f;
+        for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
+        {
+            for (unsigned int y = 0; y <= Y_SEGMENTS; ++y)
+            {
+                float xSegment = (float)x / (float)X_SEGMENTS;
+                float ySegment = (float)y / (float)Y_SEGMENTS;
+                float xPos = std::cos(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+                float yPos = std::cos(ySegment * PI);
+                float zPos = std::sin(xSegment * 2.0f * PI) * std::sin(ySegment * PI);
+
+                positions.push_back(glm::vec3(xPos, yPos, zPos));
+                uv.push_back(glm::vec2(xSegment, ySegment));
+                normals.push_back(glm::vec3(xPos, yPos, zPos));
+            }
+        }
+
+        bool oddRow = false;
+        for (unsigned int y = 0; y < Y_SEGMENTS; ++y)
+        {
+            if (!oddRow) // even rows: y == 0, y == 2; and so on
+            {
+                for (unsigned int x = 0; x <= X_SEGMENTS; ++x)
+                {
+                    indices.push_back(y * (X_SEGMENTS + 1) + x);
+                    indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+                }
+            }
+            else
+            {
+                for (int x = X_SEGMENTS; x >= 0; --x)
+                {
+                    indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
+                    indices.push_back(y * (X_SEGMENTS + 1) + x);
+                }
+            }
+            oddRow = !oddRow;
+        }
+        indexCount = static_cast<unsigned int>(indices.size());
+
+        std::vector<float> data;
+        for (unsigned int i = 0; i < positions.size(); ++i)
+        {
+            data.push_back(positions[i].x);
+            data.push_back(positions[i].y);
+            data.push_back(positions[i].z);
+            if (normals.size() > 0)
+            {
+                data.push_back(normals[i].x);
+                data.push_back(normals[i].y);
+                data.push_back(normals[i].z);
+            }
+            if (uv.size() > 0)
+            {
+                data.push_back(uv[i].x);
+                data.push_back(uv[i].y);
+            }
+        }
+        glBindVertexArray(sphereVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), &data[0], GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
+        unsigned int stride = (3 + 2 + 3) * sizeof(float);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+    }
+
+    glBindVertexArray(sphereVAO);
+    glDrawElements(GL_TRIANGLE_STRIP, indexCount, GL_UNSIGNED_INT, 0);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) 

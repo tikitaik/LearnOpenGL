@@ -1,5 +1,7 @@
 #version 330 core
+
 out vec4 FragColor;
+
 in vec2 TexCoords;
 in vec3 WorldPos;
 in vec3 Normal;
@@ -75,8 +77,6 @@ void main()
     vec3 R = normalize(reflect(-V, N)); 
     
     vec2 brdf  = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
-    FragColor = vec4(brdf, 0.0f, 1.0f);
-    return;
 
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
     // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
