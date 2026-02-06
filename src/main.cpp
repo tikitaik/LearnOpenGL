@@ -1,6 +1,5 @@
 #include <iostream>
 #include <filesystem>
-#include <random>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -25,9 +24,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 unsigned int loadTexture(char const * path, bool isSRGB);
 unsigned int loadCubemap(std::vector<std::string> faces);
+unsigned int load_HDR_radiance(std::string path); 
 
 // custom rendering functions
-void renderScene(Shader shader, Model sphere); 
 void renderFrameBufferToScreen(Shader screenQuadShader);
 void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShader);
 
@@ -35,7 +34,6 @@ void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShad
 void getVAOS();
 void getTangents(const unsigned int rowSize, const unsigned int triangleCount, float* vertices, float* tangents);
 std::string getBuildPath(std::string command);
-void getAsteroidTranslations(glm::mat4 asteroidTranslations[ASTEROID_AMOUNT]);
 
 // timekeeping
 float deltaTime = 0.0f; // time between current and last frame
@@ -100,7 +98,7 @@ int main(int argc, char* argv[])
     // Configure OpenGL State //
     // ---------------------- //
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+    glDepthFunc(GL_LEQUAL);
 
     // ------------ //
     // Shader Setup //
@@ -109,8 +107,14 @@ int main(int argc, char* argv[])
     std::string shaderPath = buildPath + "shaders/";
 
     // back to boring setup stuff now
+    Shader equirectangularToCubemapShader(buildPath, "eqrtocb");
+    Shader irradianceShader(buildPath, "irradiance");
     Shader pbrShader(buildPath, "pbr");
     Shader screenQuadShader(buildPath, "screenquad");
+    Shader skyboxShader(buildPath, "skybox");
+
+    pbrShader.use();
+    pbrShader.setInt("irradianceMap", 0);
 
     glm::vec3 lightPositions[] = {
         glm::vec3(-10.0f,  10.0f, 10.0f),
@@ -137,20 +141,114 @@ int main(int argc, char* argv[])
     Model backpack(objDirPath + backpackPath);
     Model sphere(objDirPath + spherePath);
 
+    // ------------- //
+    // Load Textures //
+    // ------------- //
+    std::string texPath = buildPath + "resources/textures/";
+    std::string hdrTexturePath = texPath + "hdr/newport_loft.hdr";
+    unsigned int hdrTexture = load_HDR_radiance(hdrTexturePath);
+
     // -------------- //
     // BUFFER OBJECTS //
     // -------------- //
 
     getVAOS();
+    unsigned int captureFBO, captureRBO;
+    glGenFramebuffers(1, &captureFBO);
+    glGenRenderbuffers(1, &captureRBO);
 
-    glfwSwapInterval(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
-    // ------------- //
-    // Load Textures //
-    // ------------- //
+    unsigned int envCubemap;
+    glGenTextures(1, &envCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        // note that we store each face with 16 bit floating point values
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 
+                512, 512, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    std::string texPath = buildPath + "resources/textures/";
 
+    glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::mat4 captureViews[] = 
+    {
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+        glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+    };
+
+    // convert HDR equirectangular environment map to cubemap equivalent
+    equirectangularToCubemapShader.use();
+    equirectangularToCubemapShader.setInt("equirectangularMap", 0);
+    equirectangularToCubemapShader.setMat4("projection", captureProjection);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, hdrTexture);
+
+    glViewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        equirectangularToCubemapShader.setMat4("view", captureViews[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
+                GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    unsigned int irradianceMap;
+    glGenTextures(1, &irradianceMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 32, 32, 0, 
+                GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 32, 32);
+
+    irradianceShader.use();
+    irradianceShader.setInt("environmentMap", 0);
+    irradianceShader.setMat4("projection", captureProjection);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+
+    glViewport(0, 0, 32, 32); // don't forget to configure the viewport to the capture dimensions.
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    for (unsigned int i = 0; i < 6; ++i)
+    {
+        irradianceShader.setMat4("view", captureViews[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
+                GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMap, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+
+    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT); // don't forget to configure the viewport to the capture dimensions.
     // --------- //
     // Main Loop //
     // --------- //
@@ -170,8 +268,7 @@ int main(int argc, char* argv[])
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         // Actual Rendering //
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -183,6 +280,8 @@ int main(int argc, char* argv[])
         pbrShader.setFloat("metallic", 0.5f);
         pbrShader.setFloat("roughness", 0.5f);
         pbrShader.setFloat("ao", 1.0f);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
 
         for (int i = 0; i < 4; i++) {
             pbrShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
@@ -192,7 +291,7 @@ int main(int argc, char* argv[])
         for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); i++)
         {
             glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
-            //newPos = lightPositions[i];
+            newPos = lightPositions[i];
             pbrShader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
             pbrShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
 
@@ -232,7 +331,20 @@ int main(int argc, char* argv[])
                 sphere.Draw(pbrShader);
             }
         }
-
+/*
+        equirectangularToCubemapShader.use();
+        equirectangularToCubemapShader.setInt("equirectangularMap", 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, hdrTexture);
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+*/
+        // temp skybox
+        skyboxShader.use();
+        skyboxShader.setInt("skybox", 0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         renderFrameBufferToScreen(screenQuadShader);
 
@@ -245,78 +357,6 @@ int main(int argc, char* argv[])
   
     glfwTerminate();
     return 0;
-}
-
-void renderScene(Shader shader, Model sphere) {
-
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glBindVertexArray(planeVAO);
-    glBindTexture(GL_TEXTURE_2D, planeTexture);
-
-    glm::mat4 model = glm::mat4(1.0f);
-
-    shader.use();
-    shader.setVec3("viewPos", camera.pos);
-    shader.setInt("diffuseMap", 0);
-
-    // create one large cube that acts as the floor
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, -1.0f, 0.0));
-    model = glm::scale(model, glm::vec3(12.5f, 0.5f, 12.5f));
-    shader.setMat4("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    glBindVertexArray(cubeVAO);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, cubeTexture);
-
-    // then create multiple cubes as the scenery
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 1.5f, 0.0));
-    model = glm::scale(model, glm::vec3(0.5f));
-    shader.setMat4("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(2.0f, 0.0f, 1.0));
-    model = glm::scale(model, glm::vec3(0.5f));
-    shader.setMat4("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-1.0f, -1.0f, 2.0));
-    model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-    shader.setMat4("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 2.7f, 4.0));
-    model = glm::rotate(model, glm::radians(23.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-    model = glm::scale(model, glm::vec3(1.25));
-    shader.setMat4("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-2.0f, 1.0f, -3.0));
-    model = glm::rotate(model, glm::radians(124.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-    shader.setMat4("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(-3.0f, 0.0f, 0.0));
-    model = glm::scale(model, glm::vec3(0.5f));
-    shader.setMat4("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    // render obj model
-    model = glm::mat4(1.0f);
-    model = translate(model, glm::vec3(1.0f, -1.0f, -1.0f));
-    model = glm::scale(model, glm::vec3(0.05f));
-    model = glm::rotate(model, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    shader.setMat4("model", model);
-    sphere.Draw(shader);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
@@ -429,10 +469,39 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
     return textureID;
 }
 
+unsigned int load_HDR_radiance(std::string path) {
+
+    stbi_set_flip_vertically_on_load(true);
+    int width, height, nrComponents;
+    float *data = stbi_loadf(path.c_str(), &width, &height, &nrComponents, 0);
+    unsigned int hdrTexture;
+
+    if (data) {
+
+        glGenTextures(1, &hdrTexture);
+        glBindTexture(GL_TEXTURE_2D, hdrTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data); 
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+        return hdrTexture;
+    }
+    else {
+        std::cout << "Failed to load HDR image." << std::endl;
+        return -1;
+    }
+
+}
+
 void renderFrameBufferToScreen(Shader screenQuadShader)  {
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         screenQuadShader.use();
 
@@ -445,7 +514,7 @@ void renderFrameBufferToScreen(Shader screenQuadShader)  {
 void renderFrameBufferToScreen(unsigned int screenTexture, Shader screenQuadShader) {
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         screenQuadShader.use();
 
@@ -695,32 +764,4 @@ std::string getBuildPath(std::string argv_0) {
     }
 
     return buildPath;
-}
-
-void getAsteroidTranslations(glm::mat4 asteroidTranslations[ASTEROID_AMOUNT]) {
-
-    srand(glfwGetTime());
-    float radius = 30.0f;
-    float offset = 20.0f;
-
-    for (unsigned int i = 0; i < ASTEROID_AMOUNT; i++) {
-
-        glm::mat4 model = glm::mat4(1.0f);
-        float angle = (float)i / (float)ASTEROID_AMOUNT * 360.0f;
-        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float x = sin(angle) * radius + displacement;
-        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float y = displacement * 0.4f;
-        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float z = cos(angle) * radius + displacement;
-        model = glm::translate(model, glm::vec3(x, y, z));
-
-        float scale = (rand() % 20) / 100.0f + 0.05f;
-        model = glm::scale(model, glm::vec3(scale));
-
-        float rotAngle = (rand() % 360);
-        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
-
-        asteroidTranslations[i] = model;
-    }
 }
