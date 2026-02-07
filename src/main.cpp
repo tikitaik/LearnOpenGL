@@ -788,14 +788,21 @@ std::string getBuildPath(std::string argv_0) {
 
     // hehehe this will let us find executable location
     std::string resPath(argv_0);
-    std::string cwd = std::filesystem::current_path();
+
+    std::string cwd = std::filesystem::current_path().string();
     std::string buildPath;
 
     // get rid of executable name
-    size_t last_slash_pos = resPath.find_last_of('/');
+    size_t last_slash_pos = resPath.find_last_of("/\\");
     if (last_slash_pos != std::string::npos) {
         resPath.erase(last_slash_pos);
     }
+
+# ifdef _WIN32
+    return resPath + '\\';
+# endif
+
+    std::cout << resPath << "::::" << cwd << '\n';
 
     if (resPath == cwd) {
 
@@ -815,6 +822,7 @@ std::string getBuildPath(std::string argv_0) {
         //std::cout << "buildPath: " << buildPath << '\n';
     }
 
+    std::cout << buildPath << '\n';
     return buildPath;
 }
 
