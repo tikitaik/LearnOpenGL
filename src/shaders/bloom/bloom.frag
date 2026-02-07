@@ -17,8 +17,8 @@ struct Light {
 uniform Light lights[4];
 uniform sampler2D diffuseMap;
 
-void main()
-{           
+void main() {           
+
     vec3 viewPos = fs_in.ViewPos;
     vec3 color = texture(diffuseMap, fs_in.TexCoords).rgb;
     vec3 normal = normalize(fs_in.Normal);
@@ -28,8 +28,7 @@ void main()
     vec3 lighting = vec3(0.0);
     vec3 viewDir = normalize(viewPos - fs_in.FragPos);
 
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
         // diffuse
         vec3 lightDir = normalize(lights[i].Position - fs_in.FragPos);
         float diff = max(dot(lightDir, normal), 0.0);
@@ -40,6 +39,7 @@ void main()
         lighting += result;
                 
     }
+
     vec3 result = ambient + lighting;
     // check whether result is higher than some threshold, if so, output as bloom threshold color
     float brightness = dot(result, vec3(0.2126, 0.7152, 0.0722));
