@@ -802,8 +802,6 @@ std::string getBuildPath(std::string argv_0) {
     return resPath + '\\';
 # endif
 
-    std::cout << resPath << "::::" << cwd << '\n';
-
     if (resPath == cwd) {
 
         // clicking on exe file case
@@ -822,7 +820,6 @@ std::string getBuildPath(std::string argv_0) {
         //std::cout << "buildPath: " << buildPath << '\n';
     }
 
-    std::cout << buildPath << '\n';
     return buildPath;
 }
 
