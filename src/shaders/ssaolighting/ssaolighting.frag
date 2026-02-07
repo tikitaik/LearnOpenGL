@@ -15,8 +15,7 @@ vec3 Color = vec3(0.0f, 0.0f, 1.0f);
 float Linear = 0.09f;
 float Quadratic = 0.032f;
 
-void main()
-{             
+void main() {             
     // retrieve data from gbuffer
     vec3 FragPos = texture(gPosition, TexCoords).rgb;
     vec3 Normal = texture(gNormal, TexCoords).rgb;
