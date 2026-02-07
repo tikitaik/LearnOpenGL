@@ -56,6 +56,7 @@ unsigned int indexCount;
 unsigned int screenFBO;
 unsigned int screenTexture;
 unsigned int screenRBO;
+int framebufferWidth, framebufferHeight;
 
 unsigned int cameraMatrixBlock;
 
@@ -84,6 +85,10 @@ int main(int argc, char* argv[])
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
 
     // glfw window creation
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "heheheheheh :)))", NULL, NULL);
@@ -172,6 +177,11 @@ int main(int argc, char* argv[])
     // -------------- //
 
     getVAOS();
+
+    // fix viewport size for macs
+    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+    glViewport(0, 0, framebufferWidth, framebufferHeight);
+
     unsigned int captureFBO;
     unsigned int captureRBO;
     glGenFramebuffers(1, &captureFBO);
@@ -355,7 +365,7 @@ int main(int argc, char* argv[])
     // --------- //
     // Main Loop //
     // --------- //
-    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT); // don't forget to configure the viewport to the capture dimensions.
+    glViewport(0, 0, framebufferWidth, framebufferHeight); // don't forget to configure the viewport to the capture dimensions.
     while (!glfwWindowShouldClose(window)) {
         
         float currentFrame = glfwGetTime();
@@ -372,7 +382,8 @@ int main(int argc, char* argv[])
 
         // Actual Rendering //
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
+        //glBindFramebuffer(GL_FRAMEBUFFER, screenFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glm::mat4 model(1.0f);
@@ -448,7 +459,7 @@ int main(int argc, char* argv[])
         glBindVertexArray(cubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
-        renderFrameBufferToScreen(screenQuadShader);
+        //renderFrameBufferToScreen(screenQuadShader);
 
         // check and call events and swap the buffers
         glfwSwapBuffers(window);
