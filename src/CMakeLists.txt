@@ -80,6 +80,7 @@ if (APPLE)
 
 elseif (WIN32)
 
+    file(COPY ${CMAKE_SOURCE_DIR}/lib/win/libassimp-6.dll DESTINATION ${CMAKE_BINARY_DIR})
     target_link_libraries(LearnOpenGL PRIVATE opengl32)
     target_link_libraries(LearnOpenGL PRIVATE gdi32)
 
