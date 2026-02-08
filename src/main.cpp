@@ -787,40 +787,37 @@ void getFramebufferVAOS() {
 std::string getBuildPath(std::string argv_0) {
 
     // hehehe this will let us find executable location
-    std::string resPath(argv_0);
-
+    std::string resPath = argv_0;
     std::string cwd = std::filesystem::current_path().string();
-    std::string buildPath;
 
-    // get rid of executable name
+    if (resPath.find(".") == 0) {
+        resPath.erase(0,1);
+    }
+    
+    std::cout << "cwd: " << cwd << '\n';
+    std::cout << "resPath: " << resPath << '\n';
+
     size_t last_slash_pos = resPath.find_last_of("/\\");
     if (last_slash_pos != std::string::npos) {
         resPath.erase(last_slash_pos);
+        std::cout << "after erase: " << resPath << '\n';
     }
+
+    size_t resPathContainsCWD = resPath.find(cwd);
+    if (resPathContainsCWD != std::string::npos) {
+            return resPath + "/";
+    }
+
+    std::string buildPath;
+
+    buildPath = cwd + resPath;
 
 # ifdef _WIN32
     return resPath + '\\';
 # endif
 
-    if (resPath == cwd) {
-
-        // clicking on exe file case
-        return cwd + '/';
-
-    } else {
-
-        // remove first character (which is . because of running ./LearnOpenGL)
-        resPath.erase(0,1);
-
-        // remove everything after the last slash in argv[0]
-
-        buildPath = cwd + resPath + '/';
-        //std::cout << "cwd: " << cwd << '\n';
-        //std::cout << "resPath: " << resPath << '\n';
-        //std::cout << "buildPath: " << buildPath << '\n';
-    }
-
-    return buildPath;
+    std::cout << buildPath << '\n';
+    return buildPath + "/";
 }
 
 void getTangents(const unsigned int rowSize,
