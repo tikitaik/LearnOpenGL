@@ -799,15 +799,11 @@ std::string getBuildPath(std::string argv_0) {
     if (resPath.find(".") == 0) {
         resPath.erase(0,1);
     }
-    
-    std::cout << "cwd: " << cwd << '\n';
-    std::cout << "resPath: " << resPath << '\n';
 
     size_t last_slash_pos = resPath.find_last_of(slash);
 
     if (last_slash_pos != std::string::npos) {
         resPath.erase(last_slash_pos);
-        std::cout << "after erase: " << resPath << '\n';
     }
 
     size_t resPathContainsCWD = resPath.find(cwd);
@@ -816,17 +812,13 @@ std::string getBuildPath(std::string argv_0) {
     }
 
 # ifdef _WIN32
-    if (std::string(1, resPath[0]) != slash) {
+    if (std::string(1, resPath[0]) != slash && std::string(1, cwd[cwd.length() - 1]) != slash) {
         cwd = cwd + slash;
     }
 # endif
 
-    std::string buildPath;
-
-    buildPath = cwd + resPath;
-
-    std::cout << buildPath << '\n';
-    return buildPath + slash;
+    std::string buildPath = cwd + resPath + slash;
+    return buildPath;
 }
 
 void getTangents(const unsigned int rowSize,
