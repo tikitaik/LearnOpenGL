@@ -1,4 +1,4 @@
-SOURCE_DIR = src
+SOURCE_DIR = .
 BUILD_DIR  = build
 GENERATOR = "MinGW Makefiles"
 
