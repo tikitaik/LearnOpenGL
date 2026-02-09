@@ -22,38 +22,27 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# platform-dependent config
-set(HINT_SRC ${CMAKE_LIBRARY_PATH}/src)
-
 if (APPLE)
 
-    set(HINT_PLATFORM ${CMAKE_LIBRARY_PATH}/mac)
-    message(${HINT_PLATFORM})
+    set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH}/mac)
+
+elseif (UNIX)
+
+    set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH}/linux)
 
 elseif(WIN32)
 
-    set(HINT_PLATFORM ${CMAKE_LIBRARY_PATH}/win)
-    message(${HINT_PLATFORM})
+    set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH}/win)
 
 endif()
 
-add_executable(LearnOpenGL main.cpp)
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/lib/src)
+add_executable(LearnOpenGL src/main.cpp src/glad/glad.c src/stb_image.cpp)
 
 target_include_directories(LearnOpenGL PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
-find_library(
-    GLFW NAMES glfw glfw3 REQUIRED
-    HINTS ${HINT_SRC} ${HINT_PLATFORM}
-    REQUIRED)
-find_library(
-    ASSIMP NAMES assimp assimp-6
-    HINTS ${HINT_SRC} ${HINT_PLATFORM}
-    REQUIRED)
+find_library(GLFW NAMES glfw glfw3 HINTS ${HINT_PLATFORM} REQUIRED)
+find_library(ASSIMP NAMES assimp assimp-6 HINTS ${HINT_PLATFORM} REQUIRED)
 
-target_link_libraries(LearnOpenGL PRIVATE glad)
-target_link_libraries(LearnOpenGL PRIVATE stb_image)
 target_link_libraries(LearnOpenGL PRIVATE ${GLFW})
 target_link_libraries(LearnOpenGL PRIVATE ${ASSIMP})
 
@@ -88,4 +77,4 @@ endif()
 
 # copy resources into build
 file(COPY ${CMAKE_SOURCE_DIR}/resources DESTINATION ${CMAKE_BINARY_DIR})
-file(COPY ${CMAKE_SOURCE_DIR}/shaders DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY ${CMAKE_SOURCE_DIR}/src/shaders DESTINATION ${CMAKE_BINARY_DIR})
