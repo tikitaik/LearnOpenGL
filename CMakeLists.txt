@@ -15,7 +15,6 @@ set(CMAKE_CXX_STANDARD 17)
 add_compile_options(-Wall)
 
 # paths
-# try to keep things in the repo folder for now because i cant be fucked
 set(CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR})
 set(CMAKE_LIBRARY_PATH ${CMAKE_PREFIX_PATH}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})

@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 #endif
 
     // glfw window creation
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "heheheheheh :)))", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
     if (window == NULL) 
     {
         std::cout << "Failed to create GLFW window" << '\n';
@@ -445,8 +445,6 @@ int main(int argc, char* argv[]) {
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
-    // i think i need to delete all the things here
   
     glfwTerminate();
     return 0;
