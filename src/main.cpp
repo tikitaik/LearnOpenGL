@@ -431,7 +431,7 @@ int main(int argc, char* argv[]) {
             }
         }
         
-        // temp skybox
+        // Skybox
         skyboxShader.use();
         skyboxShader.setInt("skybox", 0);
         glActiveTexture(GL_TEXTURE0);
@@ -784,7 +784,7 @@ void getFramebufferVAOS() {
 
 std::string getBuildPath(std::string argv_0) {
 
-    // hehehe this will let us find executable location
+    // Get executable location
     std::string resPath = argv_0;
     std::string cwd = std::filesystem::current_path().string();
 

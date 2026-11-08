@@ -1,18 +1,17 @@
-# boring ahh config
-cmake_minimum_required(VERSION 3.5 VERSION 4.0)
-
-project (LearnOpenGL)
+cmake_minimum_required(VERSION 3.5...4.0)
 
 # compiler config
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
 
+project (LearnOpenGL)
+
 set(CMAKE_CXX_STANDARD 17)
 
-# if i need to debug
-#set(CMAKE_FIND_DEBUG_MODE TRUE)
+add_compile_options(-Wall -Wextra)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_compile_options(-Wall)
 
 # paths
 set(CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR})
@@ -50,7 +49,7 @@ if (APPLE)
 
     add_compile_options(-mmacosx-version-min=15.3)
 
-    # weird mac libraries
+    # extra mac libraries
     find_library(COCOA_FRAMEWORK Cocoa)
     find_library(IOKIT_FRAMEWORK IOKit)
 

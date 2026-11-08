@@ -7,15 +7,15 @@ A from-scratch, cross-platform real-time renderer written in **C++17** and **mod
 ![CMake](https://img.shields.io/badge/build-CMake-064F8C?logo=cmake&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
-<!-- Add a screenshot or short GIF of the PBR sphere demo here, e.g.:-->
-![PBR demo](https://tawai.net/resources/project-ss/learnopengl_2.png)
+<!-- Add a screenshot or short GIF of the PBR sphere demo here, e.g-->
+![PBR demo](resources/images/image.png)
 
 
 ## What this is
 
 The current build renders a **7x7 grid of PBR spheres** (metalness varies down the rows, roughness across the columns) lit by four point lights and an HDR environment map, with a free-fly camera. It is the end point of the PBR chapters and exercises most of the pipeline below: HDR framebuffers, cubemaps, a precomputed IBL pipeline, and GLSL shaders for the Cook-Torrance BRDF.
 
-The repository history is the learning log. Every chapter is its own commit(s), so you can check out an earlier commit to see that technique in isolation (see [Development history](#development-history)).
+The repository history is the learning log. Every chapter is its own commit(s), so you can check out an earlier commit to see that technique in isolation (see [Development history](https://github.com/tikitaik/LearnOpenGL/commits/main/)).
 
 ## Techniques implemented
 
@@ -48,7 +48,7 @@ Everything below is computed at startup on the GPU from a single `.hdr` equirect
 - **Render-to-texture pipeline**: the scene renders into an `RGBA16F` framebuffer and is resolved to the screen through a full-screen quad pass.
 - **Asset path resolution independent of the working directory**, so the executable runs from a terminal or by double-clicking it.
 - **Cross-platform build**: a single `CMakeLists.txt` selects bundled libraries for Windows, macOS and Linux, and copies resources and shaders next to the binary. Includes handling for high-DPI framebuffer sizes on macOS.
-- Built with `-Wall` and a hard `C++17` requirement.
+- Built with `-Wall`, `-Wextra` and a `C++17` requirement.
 
 ## Project structure
 
@@ -103,12 +103,12 @@ CMake copies `resources/` and `src/shaders/` into the build directory, so the ex
 | `W` `A` `S` `D` | Move forward / left / backward / right |
 | `Space` / `Left Shift` | Move up / down |
 | Mouse | Look around |
-| Scroll wheel | Zoom (field of view) |
+| Scroll wheel | Zoom (field of view, not in all builds) |
 | `Esc` | Quit |
 
 ## Development history
 
-The project was built incrementally over about 110 commits, and the history approximately serves as a chapter-by-chapter record, though multiple commits were often made per chapter. Roughly in order:
+The project was built incrementally over ~110 commits, and the history approximately serves as a chapter-by-chapter record, though multiple commits were often made per chapter. Roughly in order:
 
 coordinate systems, colours, light maps, multiple lights, model loading, blending, cubemaps, instancing, framebuffers, directional shadows, normal mapping, parallax mapping, geometry shaders, deferred rendering, SSAO, PBR and image-based lighting.
 
